@@ -14,9 +14,18 @@ const CONFIG = {
     min_enemy_dist: 100,
     separation_strength: 30,
     dash_duration: 0.07,
-    dash_cooldown: .5,
+    dash_cooldown: .4,
     dash_speed: 2600, // double speed idk
-    tail_frames: 20, // double speed idk
+    tail_frames: 20,
+    dash_dist: 100,
+    player_acc: 50,
+    player_turn_speed_radians: 3,
+    enemy_radius: 20,
+    enemy_throwback_dist: 150, // same as dash dist idk
+    enemy_throwback_speed: 700,
+    enemy_acc: 6,
+    enemy_friction: 3,
+    invincible_time: .3,
 };
 let gui = new dat.GUI({});
 gui.remember(CONFIG);
@@ -28,14 +37,22 @@ gui.add(CONFIG, "dash_duration", 0, .5);
 gui.add(CONFIG, "dash_cooldown", 0, 2);
 gui.add(CONFIG, "dash_speed", 300, 3200);
 gui.add(CONFIG, "tail_frames", 0, 59);
+gui.add(CONFIG, "dash_dist", 0, 400);
+gui.add(CONFIG, "player_acc", 0, 400);
+gui.add(CONFIG, "player_turn_speed_radians", 0, 20);
+gui.add(CONFIG, "enemy_throwback_dist", 0, 500);
+gui.add(CONFIG, "enemy_throwback_speed", 0, 500);
+gui.add(CONFIG, "enemy_acc", 0, 50);
+gui.add(CONFIG, "enemy_friction", 0, 50);
 
 // init shaku
-await Shaku.init();
+Shaku.input.setTargetElement(() => Shaku.gfx.canvas)
+await Shaku.init([Shaku.assets, Shaku.sfx, Shaku.gfx, Shaku.input]);
 
 // add shaku's canvas to document and set resolution to 800x600
 document.body.appendChild(Shaku!.gfx!.canvas);
 Shaku.gfx!.setResolution(800, 600, true);
-// Shaku.gfx!.centerCanvas();
+Shaku.gfx!.centerCanvas();
 // Shaku.gfx!.maximizeCanvasSize(false, false);
 
 
@@ -43,6 +60,8 @@ Shaku.gfx!.setResolution(800, 600, true);
 Shaku.startFrame();
 Shaku.gfx!.clear(Shaku.utils.Color.cornflowerblue);
 Shaku.endFrame();
+
+let paused = false;
 
 // TODO: INIT STUFF AND LOAD ASSETS HERE
 let cursor_texture = await loadAsciiTexture(`0`, [Color.white]);
@@ -56,12 +75,13 @@ let player_texture = await loadAsciiTexture(`
         0...0
         00000
     `, [
-    Shaku.utils.Color.black,
+    Shaku.utils.Color.white,
 ]);
 let player_sprite = new Shaku.gfx!.Sprite(player_texture);
 player_sprite.size.mulSelf(7.5);
+player_sprite.color = Color.black;
 let player_tail_sprite = new Shaku.gfx!.Sprite(player_texture);
-(player_tail_sprite.color as Color).a = .5;
+player_tail_sprite.color = new Color(0, 0, 0, .5);
 
 let enemy_texture = await loadAsciiTexture(`
         ..0..
@@ -87,7 +107,8 @@ class Enemy {
     }
 
     update_and_draw(dt: number) {
-        this.vel = player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_speed);
+        this.vel.addSelf(player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_acc));
+        // this.vel = player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_speed);
         enemies.forEach(x => {
             if (x === this) return;
             let delta = this.pos.sub(x.pos);
@@ -97,7 +118,8 @@ class Enemy {
             }
         })
 
-        this.pos.addSelf(this.vel.mulSelf(dt));
+        this.vel.mulSelf(1 / (1 + (dt * CONFIG.enemy_friction)));
+        this.pos.addSelf(this.vel.mul(dt));
         this.sprite.rotation = this.vel.getRadians();
         Shaku.gfx.drawSprite(this.sprite);
     }
@@ -106,9 +128,10 @@ class Enemy {
 let time_since_dash = Infinity;
 let last_dash_pos = Vector2.zero;
 let last_dash_dir = Vector2.zero;
+let last_dash_dist = 0;
 
 let player_pos = Shaku.gfx.getCanvasSize().mulSelf(.5);
-let player_vel = Vector2.zero;
+let player_vel = Vector2.right.mulSelf(CONFIG.player_speed);
 
 let player_pos_history = new Deque(60);
 while (player_pos_history.length < CONFIG.tail_frames) {
@@ -126,30 +149,95 @@ function step() {
     Shaku.startFrame();
     Shaku.gfx!.clear(Shaku.utils.Color.cornflowerblue);
 
+    if (Shaku.input.pressed("escape")) {
+        paused = !paused;
+    }
+
+    if (paused) {
+        Shaku.endFrame();
+        Shaku.requestAnimationFrame(step);
+        return;
+    }
+
+
     cursor_sprite.position.copy(Shaku.input.mousePosition);
 
+    // let mid_screen = Shaku.gfx.getCanvasSize().mulSelf(.5)
+    // cursor_sprite.position = Shaku.input.mousePosition.sub(mid_screen).normalizeSelf().mulSelf(mid_screen.y * .9).addSelf(mid_screen);
+
+    // Single frame dash
     if (time_since_dash >= CONFIG.dash_cooldown && Shaku.input.mousePressed()) {
-        // Shaku.gfx.canvas.requestPointerLock();
         time_since_dash = 0;
         last_dash_pos.copy(player_pos);
-        last_dash_dir = Shaku.input.mousePosition.sub(player_pos).normalizeSelf();
+        last_dash_dir = Shaku.input.mousePosition.sub(player_pos);
+        // last_dash_dist = Math.min(CONFIG.dash_dist, last_dash_dir.length);
+        last_dash_dist = CONFIG.dash_dist;
+        last_dash_dir.normalizeSelf();
+        player_sprite.color = Color.white;
+        setTimeout(() => {
+            player_sprite.color = Color.black;
+        }, CONFIG.invincible_time * 1000);
+
+        // collision with enemies
+        let collision_distances = enemies.map(enemy => {
+            // ray-circle collision from https://stackoverflow.com/a/1088058/5120619
+            let closest_dist_along_ray = Vector2.dot(last_dash_dir, enemy.pos.sub(player_pos));
+            if (closest_dist_along_ray < 0 || closest_dist_along_ray >= CONFIG.enemy_radius + last_dash_dist) {
+                // early stop
+                return Infinity;
+            }
+            let closest_point = player_pos.add(last_dash_dir.mul(closest_dist_along_ray));
+            let closest_dist_to_enemy = Vector2.distance(closest_point, enemy.pos);
+            if (closest_dist_to_enemy < CONFIG.enemy_radius) {
+                let dt = Math.sqrt(CONFIG.enemy_radius * CONFIG.enemy_radius - closest_dist_to_enemy * closest_dist_to_enemy);
+                let collision_dist = closest_dist_along_ray - dt;
+                if (collision_dist > 0 && collision_dist <= last_dash_dist) {
+                    return collision_dist;
+                }
+            }
+            return Infinity;
+        });
+        let closest_enemy_index = argmin(collision_distances);
+        if (collision_distances[closest_enemy_index] < Infinity) {
+            // actual collision
+            // todo: better collision
+            enemies[closest_enemy_index].pos.addSelf(last_dash_dir.mul(CONFIG.enemy_throwback_dist));
+            enemies[closest_enemy_index].vel.addSelf(last_dash_dir.mul(CONFIG.enemy_throwback_speed));
+
+            // should player keep on dashing?
+            // last_dash_dist = collision_distances[closest_enemy_index];
+        }
+
+        player_pos.addSelf(last_dash_dir.mul(last_dash_dist));
     }
 
     if (time_since_dash < CONFIG.dash_duration) {
-        player_vel.copy(last_dash_dir);
-        player_vel.mulSelf(CONFIG.dash_speed);
-        // Shaku.input._mousePos.addSelf(player_vel.mul(Shaku.gameTime.delta));
-        // untested, gradually reduce speed
-        // player_vel.mulSelf(lerp(CONFIG.player_speed, CONFIG.dash_speed, time_since_dash / CONFIG.dash_duration))
-    } else {
-        // let dx = (Shaku.input.down("d") ? 1 : 0) - (Shaku.input.down("a") ? 1 : 0);
-        // let dy = (Shaku.input.down("s") ? 1 : 0) - (Shaku.input.down("w") ? 1 : 0);
-        // player_vel.set(dx, dy);
-        // player_vel.mulSelf(CONFIG.player_speed);
-
-        player_vel = Shaku.input.mousePosition.sub(player_pos).normalizeSelf();
-        player_vel.mulSelf(CONFIG.player_speed);
+        // draw dash trail
+        player_tail_sprite.size.copy(player_sprite.size.mul(.85 * (1. - clamp(time_since_dash / CONFIG.dash_duration, 0, .5))))
+        for (let k = 0; k < last_dash_dist; k += 4) {
+            player_tail_sprite.position.copy(last_dash_pos.add(last_dash_dir.mul(k)));
+            Shaku.gfx!.drawSprite(player_tail_sprite);
+        }
     }
+
+    // let dx = (Shaku.input.down("d") ? 1 : 0) - (Shaku.input.down("a") ? 1 : 0);
+    // let dy = (Shaku.input.down("s") ? 1 : 0) - (Shaku.input.down("w") ? 1 : 0);
+    // player_vel.set(dx, dy);
+    // player_vel.mulSelf(CONFIG.player_speed);
+
+    let delta = (cursor_sprite.position as Vector2).sub(player_pos);
+    if (delta.length < 3) {
+        player_vel.set(0, 0);
+    } else {
+        player_vel = delta.normalizeSelf().mulSelf(CONFIG.player_speed);
+    }
+
+    // let target_vel = (cursor_sprite.position as Vector2).sub(player_pos);
+    // target_vel.normalizeSelf();
+    // player_vel = rotateTowards(player_vel, target_vel, CONFIG.player_turn_speed_radians);
+    // player_vel.normalizeSelf().mulSelf(CONFIG.player_speed);
+
+    // player_vel = (cursor_sprite.position as Vector2).sub(player_pos).normalizeSelf().mulSelf(CONFIG.player_speed);
 
     player_pos.addSelf(player_vel.mul(Shaku.gameTime.delta));
     player_sprite.position.copy(player_pos);
@@ -221,6 +309,57 @@ function smoothstep(toZero: number, toOne: number, value: number) {
     let x = Math.max(0, Math.min(1, (value - toZero) / (toOne - toZero)));
     return x * x * (3 - 2 * x);
 };
+
+function remap(value: number, old_a: number, old_b: number, new_a: number, new_b: number) {
+    let t = (value - old_a) / (old_b - old_a);
+    return t * (new_b - new_a) + new_a;
+}
+
+function clamp(value: number, a: number, b: number) {
+    if (value < a) return a;
+    if (value > b) return b;
+    return value;
+}
+
+function mod(n: number, m: number) {
+    return ((n % m) + m) % m;
+}
+
+function moveTowardsV(cur_val: Vector2, target_val: Vector2, max_dist: number): Vector2 {
+    let delta = target_val.sub(cur_val);
+    let dist = delta.length;
+    if (dist < max_dist) {
+        // already arrived
+        return target_val.clone();
+    }
+    delta.mulSelf(max_dist / dist);
+    return cur_val.add(delta);
+}
+
+function rotateTowards(cur_val: Vector2, target_val: Vector2, max_radians: number): Vector2 {
+    let radians = target_val.getRadians() - cur_val.getRadians();
+    // get them in the interval [-PI+eps, PI+eps] to bias the result
+    let eps = .01;
+    radians = mod(radians + Math.PI + eps, Math.PI * 2) - Math.PI + eps;
+    radians = clamp(radians, -max_radians, max_radians);
+    return cur_val.rotatedRadians(radians);
+}
+
+function argmin(vals: number[]) {
+    if (vals.length === 0) {
+        return -1;
+    }
+    let best_index = 0;
+    let best_value = vals[0];
+    for (let k = 0; k < vals.length; k++) {
+        const cur = vals[k];
+        if (cur < best_value) {
+            best_index = k;
+            best_value = cur;
+        }
+    }
+    return best_index;
+}
 
 // start main loop
 step();
