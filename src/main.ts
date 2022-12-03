@@ -18,7 +18,6 @@ const CONFIG = {
     dash_speed: 2600, // double speed idk
     tail_frames: 20,
     dash_dist: 100,
-    player_acc: 50,
     player_turn_speed_radians: 3,
     enemy_radius: 20,
     enemy_throwback_dist: 150, // same as dash dist idk
@@ -26,6 +25,8 @@ const CONFIG = {
     enemy_acc: 6,
     enemy_friction: 3,
     invincible_time: .3,
+    player_acc: 5000,
+    player_friction: 12,
 };
 let gui = new dat.GUI({});
 gui.remember(CONFIG);
@@ -38,12 +39,13 @@ gui.add(CONFIG, "dash_cooldown", 0, 2);
 gui.add(CONFIG, "dash_speed", 300, 3200);
 gui.add(CONFIG, "tail_frames", 0, 59);
 gui.add(CONFIG, "dash_dist", 0, 400);
-gui.add(CONFIG, "player_acc", 0, 400);
 gui.add(CONFIG, "player_turn_speed_radians", 0, 20);
 gui.add(CONFIG, "enemy_throwback_dist", 0, 500);
 gui.add(CONFIG, "enemy_throwback_speed", 0, 500);
 gui.add(CONFIG, "enemy_acc", 0, 50);
 gui.add(CONFIG, "enemy_friction", 0, 50);
+gui.add(CONFIG, "player_acc", 0, 8000);
+gui.add(CONFIG, "player_friction", 0, 50);
 
 // init shaku
 Shaku.input.setTargetElement(() => Shaku.gfx.canvas)
@@ -107,6 +109,7 @@ class Enemy {
     }
 
     update_and_draw(dt: number) {
+        // there should be a dt in these calculations, but i don't wan't to change the CONFIG values rn
         this.vel.addSelf(player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_acc));
         // this.vel = player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_speed);
         enemies.forEach(x => {
@@ -131,6 +134,7 @@ let last_dash_dir = Vector2.zero;
 let last_dash_dist = 0;
 
 let player_pos = Shaku.gfx.getCanvasSize().mulSelf(.5);
+let player_dir = Vector2.right;
 let player_vel = Vector2.right.mulSelf(CONFIG.player_speed);
 
 let player_pos_history = new Deque(60);
@@ -169,7 +173,8 @@ function step() {
     if (time_since_dash >= CONFIG.dash_cooldown && Shaku.input.mousePressed()) {
         time_since_dash = 0;
         last_dash_pos.copy(player_pos);
-        last_dash_dir = Shaku.input.mousePosition.sub(player_pos);
+        last_dash_dir = player_dir.clone();
+        // last_dash_dir = Shaku.input.mousePosition.sub(player_pos);
         // last_dash_dist = Math.min(CONFIG.dash_dist, last_dash_dir.length);
         last_dash_dist = CONFIG.dash_dist;
         last_dash_dir.normalizeSelf();
@@ -220,24 +225,39 @@ function step() {
         }
     }
 
-    // let dx = (Shaku.input.down("d") ? 1 : 0) - (Shaku.input.down("a") ? 1 : 0);
-    // let dy = (Shaku.input.down("s") ? 1 : 0) - (Shaku.input.down("w") ? 1 : 0);
-    // player_vel.set(dx, dy);
+    // Keyboard controls
+    let dx = (Shaku.input.down("d") ? 1 : 0) - (Shaku.input.down("a") ? 1 : 0);
+    let dy = (Shaku.input.down("s") ? 1 : 0) - (Shaku.input.down("w") ? 1 : 0);
+    // player_vel.set(dx, dy);    
     // player_vel.mulSelf(CONFIG.player_speed);
-
-    let delta = (cursor_sprite.position as Vector2).sub(player_pos);
-    if (delta.length < 3) {
-        player_vel.set(0, 0);
-    } else {
-        player_vel = delta.normalizeSelf().mulSelf(CONFIG.player_speed);
+    player_vel.addSelf(CONFIG.player_acc * dx * Shaku.gameTime.delta, CONFIG.player_acc * dy * Shaku.gameTime.delta);
+    player_vel.mulSelf(1 / (1 + (Shaku.gameTime.delta * CONFIG.player_friction)));
+    if (player_vel.length > 1) {
+        player_dir = player_vel.normalized();
+        player_sprite.rotation = player_dir.getRadians();
     }
+    // Tank controls
+    // let delta_rot = ((Shaku.input.down("d") ? 1 : 0) - (Shaku.input.down("a") ? 1 : 0)) * CONFIG.player_turn_speed_radians;
+    // player_dir = player_dir.rotatedRadians(delta_rot * Shaku.gameTime.delta);
+    // player_sprite.rotation = player_dir.getRadians();
+    // let forward_speed = ((Shaku.input.down("w") ? 1 : 0) - (Shaku.input.down("s") ? 1 : 0)) * CONFIG.player_speed;
+    // player_vel = player_dir.mul(forward_speed);
 
+    // Mouse controls
+    // let delta = (cursor_sprite.position as Vector2).sub(player_pos);
+    // if (delta.length < 3) {
+    //     player_vel.set(0, 0);
+    // } else {
+    //     player_vel = delta.normalizeSelf().mulSelf(CONFIG.player_speed);
+    //     player_dir = player_vel.normalized();
+    //     player_sprite.rotation = player_dir.getRadians();
+    // }
+
+    // Mouse acceleration controls
     // let target_vel = (cursor_sprite.position as Vector2).sub(player_pos);
     // target_vel.normalizeSelf();
     // player_vel = rotateTowards(player_vel, target_vel, CONFIG.player_turn_speed_radians);
     // player_vel.normalizeSelf().mulSelf(CONFIG.player_speed);
-
-    // player_vel = (cursor_sprite.position as Vector2).sub(player_pos).normalizeSelf().mulSelf(CONFIG.player_speed);
 
     player_pos.addSelf(player_vel.mul(Shaku.gameTime.delta));
     player_sprite.position.copy(player_pos);

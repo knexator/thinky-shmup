@@ -10673,14 +10673,15 @@ var CONFIG = {
   dash_speed: 2600,
   tail_frames: 20,
   dash_dist: 100,
-  player_acc: 50,
   player_turn_speed_radians: 3,
   enemy_radius: 20,
   enemy_throwback_dist: 150,
   enemy_throwback_speed: 700,
   enemy_acc: 6,
   enemy_friction: 3,
-  invincible_time: 0.3
+  invincible_time: 0.3,
+  player_acc: 5e3,
+  player_friction: 12
 };
 var gui = new GUI$1({});
 gui.remember(CONFIG);
@@ -10693,12 +10694,13 @@ gui.add(CONFIG, "dash_cooldown", 0, 2);
 gui.add(CONFIG, "dash_speed", 300, 3200);
 gui.add(CONFIG, "tail_frames", 0, 59);
 gui.add(CONFIG, "dash_dist", 0, 400);
-gui.add(CONFIG, "player_acc", 0, 400);
 gui.add(CONFIG, "player_turn_speed_radians", 0, 20);
 gui.add(CONFIG, "enemy_throwback_dist", 0, 500);
 gui.add(CONFIG, "enemy_throwback_speed", 0, 500);
 gui.add(CONFIG, "enemy_acc", 0, 50);
 gui.add(CONFIG, "enemy_friction", 0, 50);
+gui.add(CONFIG, "player_acc", 0, 8e3);
+gui.add(CONFIG, "player_friction", 0, 50);
 import_shaku.default.input.setTargetElement(() => import_shaku.default.gfx.canvas);
 await import_shaku.default.init([import_shaku.default.assets, import_shaku.default.sfx, import_shaku.default.gfx, import_shaku.default.input]);
 document.body.appendChild(import_shaku.default.gfx.canvas);
@@ -10766,6 +10768,7 @@ var last_dash_pos = import_vector2.default.zero;
 var last_dash_dir = import_vector2.default.zero;
 var last_dash_dist = 0;
 var player_pos = import_shaku.default.gfx.getCanvasSize().mulSelf(0.5);
+var player_dir = import_vector2.default.right;
 var player_vel = import_vector2.default.right.mulSelf(CONFIG.player_speed);
 var player_pos_history = new import_double_ended_queue.default(60);
 while (player_pos_history.length < CONFIG.tail_frames) {
@@ -10790,7 +10793,7 @@ function step() {
   if (time_since_dash >= CONFIG.dash_cooldown && import_shaku.default.input.mousePressed()) {
     time_since_dash = 0;
     last_dash_pos.copy(player_pos);
-    last_dash_dir = import_shaku.default.input.mousePosition.sub(player_pos);
+    last_dash_dir = player_dir.clone();
     last_dash_dist = CONFIG.dash_dist;
     last_dash_dir.normalizeSelf();
     player_sprite.color = import_color.default.white;
@@ -10827,11 +10830,13 @@ function step() {
       import_shaku.default.gfx.drawSprite(player_tail_sprite);
     }
   }
-  let delta = cursor_sprite.position.sub(player_pos);
-  if (delta.length < 3) {
-    player_vel.set(0, 0);
-  } else {
-    player_vel = delta.normalizeSelf().mulSelf(CONFIG.player_speed);
+  let dx = (import_shaku.default.input.down("d") ? 1 : 0) - (import_shaku.default.input.down("a") ? 1 : 0);
+  let dy = (import_shaku.default.input.down("s") ? 1 : 0) - (import_shaku.default.input.down("w") ? 1 : 0);
+  player_vel.addSelf(CONFIG.player_acc * dx * import_shaku.default.gameTime.delta, CONFIG.player_acc * dy * import_shaku.default.gameTime.delta);
+  player_vel.mulSelf(1 / (1 + import_shaku.default.gameTime.delta * CONFIG.player_friction));
+  if (player_vel.length > 1) {
+    player_dir = player_vel.normalized();
+    player_sprite.rotation = player_dir.getRadians();
   }
   player_pos.addSelf(player_vel.mul(import_shaku.default.gameTime.delta));
   player_sprite.position.copy(player_pos);
