@@ -27,6 +27,7 @@ const CONFIG = {
     invincible_time: .3,
     player_acc: 5000,
     player_friction: 12,
+    grab_dist: 20,
 };
 let gui = new dat.GUI({});
 gui.remember(CONFIG);
@@ -46,6 +47,7 @@ gui.add(CONFIG, "enemy_acc", 0, 50);
 gui.add(CONFIG, "enemy_friction", 0, 50);
 gui.add(CONFIG, "player_acc", 0, 8000);
 gui.add(CONFIG, "player_friction", 0, 50);
+gui.add(CONFIG, "grab_dist", 0, 50);
 
 // init shaku
 Shaku.input.setTargetElement(() => Shaku.gfx.canvas)
@@ -109,20 +111,22 @@ class Enemy {
     }
 
     update_and_draw(dt: number) {
-        // there should be a dt in these calculations, but i don't wan't to change the CONFIG values rn
-        this.vel.addSelf(player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_acc));
-        // this.vel = player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_speed);
-        enemies.forEach(x => {
-            if (x === this) return;
-            let delta = this.pos.sub(x.pos);
-            let delta_len = delta.length;
-            if (delta_len < CONFIG.min_enemy_dist) {
-                this.vel.addSelf(delta.mulSelf(smoothstep(CONFIG.min_enemy_dist, CONFIG.min_enemy_dist * .95, delta_len) * CONFIG.separation_strength / delta_len));
-            }
-        })
+        if (this !== grabbed_enemy) {
+            // there should be a dt in these calculations, but i don't wan't to change the CONFIG values rn
+            this.vel.addSelf(player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_acc));
+            // this.vel = player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_speed);
+            enemies.forEach(x => {
+                if (x === this) return;
+                let delta = this.pos.sub(x.pos);
+                let delta_len = delta.length;
+                if (delta_len < CONFIG.min_enemy_dist) {
+                    this.vel.addSelf(delta.mulSelf(smoothstep(CONFIG.min_enemy_dist, CONFIG.min_enemy_dist * .95, delta_len) * CONFIG.separation_strength / delta_len));
+                }
+            })
 
-        this.vel.mulSelf(1 / (1 + (dt * CONFIG.enemy_friction)));
-        this.pos.addSelf(this.vel.mul(dt));
+            this.vel.mulSelf(1 / (1 + (dt * CONFIG.enemy_friction)));
+            this.pos.addSelf(this.vel.mul(dt));
+        }
         this.sprite.rotation = this.vel.getRadians();
         Shaku.gfx.drawSprite(this.sprite);
     }
@@ -147,6 +151,8 @@ for (let k = 0; k < 4; k++) {
     enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 }
 
+let grabbed_enemy: Enemy | null = null;
+
 // do a single main loop step and request the next step
 function step() {
     // start a new frame and clear screen
@@ -170,7 +176,7 @@ function step() {
     // cursor_sprite.position = Shaku.input.mousePosition.sub(mid_screen).normalizeSelf().mulSelf(mid_screen.y * .9).addSelf(mid_screen);
 
     // Single frame dash
-    if (time_since_dash >= CONFIG.dash_cooldown && Shaku.input.mousePressed()) {
+    if (false && time_since_dash >= CONFIG.dash_cooldown && Shaku.input.mousePressed()) {
         time_since_dash = 0;
         last_dash_pos.copy(player_pos);
         last_dash_dir = player_dir.clone();
@@ -214,6 +220,17 @@ function step() {
         }
 
         player_pos.addSelf(last_dash_dir.mul(last_dash_dist));
+    }
+
+    if (grabbed_enemy === null) {
+        if (Shaku.input.mousePressed()) {
+            grabbed_enemy = enemies.find(enemy => cursor_sprite.position.sub(enemy.pos).length < CONFIG.grab_dist) || null;
+        }
+    } else {
+        grabbed_enemy.pos.copy(cursor_sprite.position);
+        if (Shaku.input.mouseReleased()) {
+            grabbed_enemy = null;
+        }
     }
 
     if (time_since_dash < CONFIG.dash_duration) {
