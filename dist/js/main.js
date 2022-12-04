@@ -1174,7 +1174,7 @@ var require_asset = __commonJS({
 var require_texture_filter_modes = __commonJS({
   "../Shaku/lib/gfx/texture_filter_modes.js"(exports, module) {
     "use strict";
-    var TextureFilterModes = {
+    var TextureFilterModes2 = {
       Nearest: "NEAREST",
       Linear: "LINEAR",
       NearestMipmapNearest: "NEAREST_MIPMAP_NEAREST",
@@ -1182,12 +1182,12 @@ var require_texture_filter_modes = __commonJS({
       NearestMipmapLinear: "NEAREST_MIPMAP_LINEAR",
       LinearMipmapLinear: "LINEAR_MIPMAP_LINEAR"
     };
-    Object.defineProperty(TextureFilterModes, "_values", {
-      value: new Set(Object.values(TextureFilterModes)),
+    Object.defineProperty(TextureFilterModes2, "_values", {
+      value: new Set(Object.values(TextureFilterModes2)),
       writable: false
     });
-    Object.freeze(TextureFilterModes);
-    module.exports = { TextureFilterModes };
+    Object.freeze(TextureFilterModes2);
+    module.exports = { TextureFilterModes: TextureFilterModes2 };
   }
 });
 
@@ -1282,7 +1282,7 @@ var require_texture_asset = __commonJS({
   "../Shaku/lib/assets/texture_asset.js"(exports, module) {
     "use strict";
     var Asset = require_asset();
-    var { TextureFilterMode, TextureFilterModes } = require_texture_filter_modes();
+    var { TextureFilterMode, TextureFilterModes: TextureFilterModes2 } = require_texture_filter_modes();
     var { TextureWrapMode, TextureWrapModes } = require_texture_wrap_modes();
     var Color3 = require_color();
     var Vector22 = require_vector2();
@@ -2288,7 +2288,7 @@ var require_perlin = __commonJS({
       156,
       180
     ];
-    var Perlin = class {
+    var Perlin2 = class {
       constructor(seed) {
         if (seed === void 0) {
           seed = Math.random();
@@ -2365,7 +2365,7 @@ var require_perlin = __commonJS({
         ) + 0.5, 1);
       }
     };
-    module.exports = Perlin;
+    module.exports = Perlin2;
   }
 });
 
@@ -3414,7 +3414,7 @@ var require_effect = __commonJS({
     var TextureAsset = require_texture_asset();
     var Color3 = require_color();
     var Rectangle = require_rectangle();
-    var { TextureFilterMode, TextureFilterModes } = require_texture_filter_modes();
+    var { TextureFilterMode, TextureFilterModes: TextureFilterModes2 } = require_texture_filter_modes();
     var { TextureWrapMode, TextureWrapModes } = require_texture_wrap_modes();
     var Matrix = require_matrix();
     var _logger = require_logger().getLogger("gfx-effect");
@@ -3725,7 +3725,7 @@ var require_effect = __commonJS({
     };
     Object.freeze(Effect.AttributeBinds);
     function _setTextureFilter(gl, filter) {
-      if (!TextureFilterModes._values.has(filter)) {
+      if (!TextureFilterModes2._values.has(filter)) {
         throw new Error("Invalid texture filter mode! Please pick a value from 'TextureFilterModes'.");
       }
       let glMode = gl[filter];
@@ -4887,7 +4887,7 @@ var require_gfx = __commonJS({
     var Rectangle = require_rectangle();
     var { Effect, BasicEffect, MsdfFontEffect } = require_effects();
     var TextureAsset = require_texture_asset();
-    var { TextureFilterMode, TextureFilterModes } = require_texture_filter_modes();
+    var { TextureFilterMode, TextureFilterModes: TextureFilterModes2 } = require_texture_filter_modes();
     var { TextureWrapMode, TextureWrapModes } = require_texture_wrap_modes();
     var MeshGenerator = require_mesh_generator();
     var Matrix = require_matrix();
@@ -4920,7 +4920,7 @@ var require_gfx = __commonJS({
         this._fb = null;
         this.builtinEffects = {};
         this.meshes = {};
-        this.defaultTextureFilter = TextureFilterModes.Nearest;
+        this.defaultTextureFilter = TextureFilterModes2.Nearest;
         this.defaultTextureWrapMode = TextureWrapModes.Clamp;
         this.whiteTexture = null;
         this._renderTarget = null;
@@ -5584,7 +5584,7 @@ var require_gfx = __commonJS({
         return TextureWrapModes;
       }
       get TextureFilterModes() {
-        return TextureFilterModes;
+        return TextureFilterModes2;
       }
       get drawCallsCount() {
         return this._drawCallsCount;
@@ -5599,7 +5599,7 @@ var require_gfx = __commonJS({
         this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
       }
       _setTextureFilter(filter) {
-        if (!TextureFilterModes._values.has(filter)) {
+        if (!TextureFilterModes2._values.has(filter)) {
           throw new Error("Invalid texture filter mode! Please pick a value from 'TextureFilterModes'.");
         }
         let glMode = this._gl[filter];
@@ -10663,12 +10663,13 @@ var GUI$1 = GUI;
 var import_color = __toESM(require_color());
 var import_vector2 = __toESM(require_vector2());
 var import_circle = __toESM(require_circle());
+var import_perlin = __toESM(require_perlin());
 var import_double_ended_queue = __toESM(require_deque());
 var CONFIG = {
   player_speed: 355,
   enemy_speed: 150,
   min_enemy_dist: 100,
-  separation_strength: 30,
+  separation_strength: 800,
   dash_duration: 0.07,
   dash_cooldown: 0.4,
   dash_speed: 2600,
@@ -10678,21 +10679,27 @@ var CONFIG = {
   enemy_radius: 20,
   enemy_throwback_dist: 80,
   enemy_throwback_speed: 700,
-  enemy_acc: 6,
+  enemy_second_hit_dist: 120,
+  enemy_acc: 360,
   enemy_friction: 3,
   invincible_time: 0.3,
   player_acc: 5e3,
   player_friction: 12,
   grab_dist: 20,
   ray_radius: 10,
-  dash_hit_duration: 0.13
+  dash_hit_duration: 0.25,
+  player_radius: 20,
+  dash_dir_override: 5,
+  screen_shake_size: 33,
+  screen_shake_speed: 21,
+  hit_slowdown: 0.3
 };
 var gui = new GUI$1({});
 gui.remember(CONFIG);
 gui.add(CONFIG, "player_speed", 100, 400);
 gui.add(CONFIG, "enemy_speed", 100, 400);
 gui.add(CONFIG, "min_enemy_dist", 0, 200);
-gui.add(CONFIG, "separation_strength", 1, 200);
+gui.add(CONFIG, "separation_strength", 1, 2e3);
 gui.add(CONFIG, "dash_duration", 0, 0.5);
 gui.add(CONFIG, "dash_cooldown", 0, 2);
 gui.add(CONFIG, "dash_speed", 300, 3200);
@@ -10701,11 +10708,17 @@ gui.add(CONFIG, "dash_dist", 0, 400);
 gui.add(CONFIG, "player_turn_speed_radians", 0, 20);
 gui.add(CONFIG, "enemy_throwback_dist", 0, 500);
 gui.add(CONFIG, "enemy_throwback_speed", 0, 2e3);
-gui.add(CONFIG, "enemy_acc", 0, 50);
+gui.add(CONFIG, "enemy_second_hit_dist", 0, 500);
+gui.add(CONFIG, "enemy_acc", 0, 1e3);
 gui.add(CONFIG, "enemy_friction", 0, 50);
 gui.add(CONFIG, "player_acc", 0, 8e3);
 gui.add(CONFIG, "player_friction", 0, 50);
 gui.add(CONFIG, "grab_dist", 0, 50);
+gui.add(CONFIG, "dash_hit_duration", 0, 1);
+gui.add(CONFIG, "dash_dir_override", 0, 5);
+gui.add(CONFIG, "screen_shake_size", 0, 100);
+gui.add(CONFIG, "screen_shake_speed", 0, 100);
+gui.add(CONFIG, "hit_slowdown", 0, 1);
 import_shaku.default.input.setTargetElement(() => import_shaku.default.gfx.canvas);
 await import_shaku.default.init([import_shaku.default.assets, import_shaku.default.sfx, import_shaku.default.gfx, import_shaku.default.input]);
 document.body.appendChild(import_shaku.default.gfx.canvas);
@@ -10718,52 +10731,43 @@ var paused = false;
 var cursor_texture = await loadAsciiTexture(`0`, [import_color.default.white]);
 var cursor_sprite = new import_shaku.default.gfx.Sprite(cursor_texture);
 cursor_sprite.size.mulSelf(10);
-var player_texture = await loadAsciiTexture(`
-        00000
-        0...0
-        0...0
-        0...0
-        00000
-    `, [
-  import_shaku.default.utils.Color.white
-]);
+var player_texture = await import_shaku.default.assets.loadTexture("imgs/player.png", { generateMipMaps: true });
+player_texture.filter = import_gfx.TextureFilterModes.Linear;
 var player_sprite = new import_shaku.default.gfx.Sprite(player_texture);
-player_sprite.size.mulSelf(7.5);
+player_sprite.size.mulSelf(CONFIG.player_radius / 50);
 player_sprite.color = import_color.default.black;
 var player_tail_sprite = new import_shaku.default.gfx.Sprite(player_texture);
 player_tail_sprite.color = new import_color.default(0, 0, 0, 0.5);
-var enemy_texture = await loadAsciiTexture(`
-        ..0..
-        .000.
-        0.0.0
-        .000.
-        ..0..
-    `, [
-  import_shaku.default.utils.Color.cyan
-]);
+var enemy_texture = await import_shaku.default.assets.loadTexture("imgs/enemy.png", { generateMipMaps: true });
+enemy_texture.filter = import_gfx.TextureFilterModes.Linear;
+var enemy_hit_trail_sprite = new import_shaku.default.gfx.Sprite(enemy_texture);
+enemy_hit_trail_sprite.size.mulSelf(CONFIG.enemy_radius / 50);
+enemy_hit_trail_sprite.color = new import_color.default(1, 1, 1, 0.125);
 var Enemy = class {
   constructor(pos) {
     this.pos = pos;
     this.sprite = new import_shaku.default.gfx.Sprite(enemy_texture);
-    this.sprite.size.mulSelf(7.5);
+    this.sprite.size.mulSelf(CONFIG.enemy_radius / 50);
     this.vel = import_vector2.default.zero;
     this.sprite.position = pos;
   }
   sprite;
   vel;
-  update_and_draw(dt) {
-    this.vel.addSelf(player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_acc));
+  update(dt) {
+    this.vel.addSelf(player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_acc * dt));
     enemies.forEach((x) => {
       if (x === this)
         return;
       let delta = this.pos.sub(x.pos);
       let delta_len = delta.length;
       if (delta_len < CONFIG.min_enemy_dist) {
-        this.vel.addSelf(delta.mulSelf(smoothstep(CONFIG.min_enemy_dist, CONFIG.min_enemy_dist * 0.95, delta_len) * CONFIG.separation_strength / delta_len));
+        this.vel.addSelf(delta.mulSelf(dt * smoothstep(CONFIG.min_enemy_dist, CONFIG.min_enemy_dist * 0.95, delta_len) * CONFIG.separation_strength / delta_len));
       }
     });
     this.vel.mulSelf(1 / (1 + dt * CONFIG.enemy_friction));
     this.pos.addSelf(this.vel.mul(dt));
+  }
+  draw() {
     this.sprite.rotation = this.vel.getRadians();
     import_shaku.default.gfx.drawSprite(this.sprite);
   }
@@ -10772,6 +10776,10 @@ var time_since_dash = Infinity;
 var last_dash_pos = import_vector2.default.zero;
 var last_dash_dir = import_vector2.default.zero;
 var last_dash_dist = 0;
+var last_enemy_dash_pos = import_vector2.default.zero;
+var last_enemy_dash_dir = import_vector2.default.zero;
+var last_enemy_dash_dist = 0;
+var cur_hit = null;
 var player_pos = import_shaku.default.gfx.getCanvasSize().mulSelf(0.5);
 var player_dir = import_vector2.default.right;
 var player_vel = import_vector2.default.right.mulSelf(CONFIG.player_speed);
@@ -10779,9 +10787,42 @@ var player_pos_history = new import_double_ended_queue.default(60);
 while (player_pos_history.length < CONFIG.tail_frames) {
   player_pos_history.insertFront(player_pos.clone());
 }
+var screen_shake_noise = new import_perlin.default(Math.random());
 var enemies = [];
 for (let k = 0; k < 4; k++) {
   enemies.push(new Enemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+}
+function rayEnemiesCollision(pos, dir, ray_dist, ray_radius, exclude) {
+  let best_dist = Infinity;
+  let best_enemy = -1;
+  for (let k = 0; k < enemies.length; k++) {
+    const cur_enemy = enemies[k];
+    if (cur_enemy === exclude)
+      continue;
+    let closest_dist_along_ray = import_vector2.default.dot(dir, cur_enemy.pos.sub(pos));
+    if (closest_dist_along_ray < 0 || closest_dist_along_ray >= CONFIG.enemy_radius + ray_radius + ray_dist) {
+      continue;
+    }
+    let closest_point_along_ray = pos.add(dir.mul(closest_dist_along_ray));
+    let closest_dist_to_enemy = import_vector2.default.distance(closest_point_along_ray, cur_enemy.pos);
+    if (closest_dist_to_enemy < CONFIG.enemy_radius + ray_radius) {
+      let helper = CONFIG.enemy_radius + ray_radius;
+      let dt = Math.sqrt(helper * helper - closest_dist_to_enemy * closest_dist_to_enemy);
+      let collision_dist = closest_dist_along_ray - dt;
+      if (collision_dist > 0 && collision_dist <= ray_dist) {
+        if (collision_dist < best_dist) {
+          best_dist = collision_dist;
+          best_enemy = k;
+        }
+      }
+    }
+  }
+  if (best_enemy === -1)
+    return null;
+  return {
+    hit_dist: best_dist,
+    hit_enemy: enemies[best_enemy]
+  };
 }
 function step() {
   import_shaku.default.startFrame();
@@ -10790,65 +10831,95 @@ function step() {
     paused = !paused;
   }
   if (paused) {
+    enemies.forEach((x) => x.draw());
+    import_shaku.default.gfx.drawSprite(player_sprite);
     import_shaku.default.endFrame();
     import_shaku.default.requestAnimationFrame(step);
     return;
   }
+  let dt = import_shaku.default.gameTime.delta;
   cursor_sprite.position.copy(import_shaku.default.input.mousePosition);
-  if (time_since_dash >= CONFIG.dash_cooldown) {
-    last_dash_pos.copy(player_pos);
-    last_dash_dir = cursor_sprite.position.sub(player_pos);
-    last_dash_dist = CONFIG.dash_dist;
-    last_dash_dir.normalizeSelf();
-    let collision_distances = enemies.map((enemy) => {
-      let closest_dist_along_ray = import_vector2.default.dot(last_dash_dir, enemy.pos.sub(player_pos));
-      if (closest_dist_along_ray < 0 || closest_dist_along_ray >= CONFIG.enemy_radius + CONFIG.ray_radius + last_dash_dist) {
-        return Infinity;
+  if (cur_hit !== null) {
+    let shake_damp = cur_hit.time_until_end / CONFIG.dash_hit_duration;
+    import_shaku.default.gfx.setCameraOrthographic(new import_vector2.default(
+      shake_damp * (screen_shake_noise.generate(import_shaku.default.gameTime.elapsed * CONFIG.screen_shake_speed, 0, 1) - 0.5) * CONFIG.screen_shake_size,
+      shake_damp * (screen_shake_noise.generate(import_shaku.default.gameTime.elapsed * CONFIG.screen_shake_speed, 1, 1) - 0.5) * CONFIG.screen_shake_size
+    ));
+    cur_hit.time_until_end -= import_shaku.default.gameTime.delta;
+    dt *= CONFIG.hit_slowdown;
+    for (let k = 0; k < last_enemy_dash_dist; k += 4) {
+      enemy_hit_trail_sprite.position.copy(last_enemy_dash_pos.add(last_enemy_dash_dir.mul(k)));
+      import_shaku.default.gfx.drawSprite(enemy_hit_trail_sprite);
+    }
+    if (cur_hit.time_until_end <= 0) {
+      cur_hit = null;
+      import_shaku.default.gfx.setCameraOrthographic(import_vector2.default.zero);
+    }
+  } else {
+    if (time_since_dash >= CONFIG.dash_cooldown) {
+      last_dash_pos.copy(player_pos);
+      last_dash_dir = cursor_sprite.position.sub(player_pos);
+      last_dash_dist = CONFIG.dash_dist;
+      last_dash_dir.normalizeSelf();
+      let first_hit = rayEnemiesCollision(player_pos, last_dash_dir, last_dash_dist, CONFIG.ray_radius, null);
+      if (first_hit !== null) {
+        last_dash_dist = first_hit.hit_dist;
       }
-      let closest_point = player_pos.add(last_dash_dir.mul(closest_dist_along_ray));
-      let closest_dist_to_enemy = import_vector2.default.distance(closest_point, enemy.pos);
-      if (closest_dist_to_enemy < CONFIG.enemy_radius + CONFIG.ray_radius) {
-        let helper = CONFIG.enemy_radius + CONFIG.ray_radius;
-        let dt = Math.sqrt(helper * helper - closest_dist_to_enemy * closest_dist_to_enemy);
-        let collision_dist = closest_dist_along_ray - dt;
-        if (collision_dist > 0 && collision_dist <= last_dash_dist) {
-          return collision_dist;
+      let ray_end = last_dash_pos.add(last_dash_dir.mul(last_dash_dist));
+      import_shaku.default.gfx.drawLine(last_dash_pos, ray_end, import_color.default.white);
+      if (first_hit !== null) {
+        import_shaku.default.gfx.outlineCircle(new import_circle.default(ray_end, CONFIG.ray_radius), import_color.default.white);
+      }
+      if (import_shaku.default.input.mousePressed()) {
+        time_since_dash = 0;
+        if (first_hit !== null) {
+          let second_ray_dir = first_hit.hit_enemy.pos.sub(ray_end).normalizeSelf();
+          second_ray_dir = second_ray_dir.add(last_dash_dir.mul(CONFIG.dash_dir_override)).normalizeSelf();
+          last_enemy_dash_pos.copy(first_hit.hit_enemy.pos);
+          last_enemy_dash_dir.copy(second_ray_dir);
+          let second_hit = rayEnemiesCollision(
+            first_hit.hit_enemy.pos,
+            second_ray_dir,
+            CONFIG.enemy_second_hit_dist,
+            CONFIG.enemy_radius,
+            first_hit.hit_enemy
+          );
+          if (second_hit === null) {
+            first_hit.hit_enemy.pos.addSelf(second_ray_dir.mul(CONFIG.enemy_throwback_dist));
+            first_hit.hit_enemy.vel.addSelf(second_ray_dir.mul(CONFIG.enemy_throwback_speed));
+            last_enemy_dash_dist = CONFIG.enemy_throwback_dist;
+          } else {
+            first_hit.hit_enemy.pos.addSelf(second_ray_dir.mul(second_hit.hit_dist));
+            cur_hit = {
+              hitter: first_hit.hit_enemy,
+              hitted: second_hit.hit_enemy,
+              time_until_end: CONFIG.dash_hit_duration
+            };
+            last_enemy_dash_dist = second_hit.hit_dist;
+          }
         }
       }
-      return Infinity;
-    });
-    let closest_enemy_index = argmin(collision_distances);
-    import_shaku.default.gfx.drawLine(last_dash_pos, last_dash_pos.add(last_dash_dir.mul(last_dash_dist)), import_color.default.white);
-    if (collision_distances[closest_enemy_index] < Infinity) {
-      import_shaku.default.gfx.outlineCircle(new import_circle.default(enemies[closest_enemy_index].pos, 20), import_color.default.white);
     }
-    if (import_shaku.default.input.mousePressed()) {
-      time_since_dash = 0;
-      if (collision_distances[closest_enemy_index] < Infinity) {
-        enemies[closest_enemy_index].pos.addSelf(last_dash_dir.mul(CONFIG.enemy_throwback_dist));
-        enemies[closest_enemy_index].vel.addSelf(last_dash_dir.mul(CONFIG.enemy_throwback_speed));
-        last_dash_dist = collision_distances[closest_enemy_index];
+    if (time_since_dash < CONFIG.dash_duration) {
+      player_tail_sprite.size.copy(player_sprite.size.mul(0.85 * (1 - clamp(time_since_dash / CONFIG.dash_duration, 0, 0.5))));
+      for (let k = 0; k < last_dash_dist; k += 4) {
+        player_tail_sprite.position.copy(last_dash_pos.add(last_dash_dir.mul(k)));
+        import_shaku.default.gfx.drawSprite(player_tail_sprite);
       }
-    }
-  }
-  if (time_since_dash < CONFIG.dash_duration) {
-    player_tail_sprite.size.copy(player_sprite.size.mul(0.85 * (1 - clamp(time_since_dash / CONFIG.dash_duration, 0, 0.5))));
-    for (let k = 0; k < last_dash_dist; k += 4) {
-      player_tail_sprite.position.copy(last_dash_pos.add(last_dash_dir.mul(k)));
-      import_shaku.default.gfx.drawSprite(player_tail_sprite);
     }
   }
   let dx = (import_shaku.default.input.down("d") ? 1 : 0) - (import_shaku.default.input.down("a") ? 1 : 0);
   let dy = (import_shaku.default.input.down("s") ? 1 : 0) - (import_shaku.default.input.down("w") ? 1 : 0);
-  player_vel.addSelf(CONFIG.player_acc * dx * import_shaku.default.gameTime.delta, CONFIG.player_acc * dy * import_shaku.default.gameTime.delta);
-  player_vel.mulSelf(1 / (1 + import_shaku.default.gameTime.delta * CONFIG.player_friction));
+  player_vel.addSelf(CONFIG.player_acc * dx * dt, CONFIG.player_acc * dy * dt);
+  player_vel.mulSelf(1 / (1 + dt * CONFIG.player_friction));
   if (player_vel.length > 1) {
     player_dir = player_vel.normalized();
     player_sprite.rotation = player_dir.getRadians();
   }
-  player_pos.addSelf(player_vel.mul(import_shaku.default.gameTime.delta));
+  player_pos.addSelf(player_vel.mul(dt));
   player_sprite.position.copy(player_pos);
-  enemies.forEach((x) => x.update_and_draw(import_shaku.default.gameTime.delta));
+  enemies.forEach((x) => x.update(dt));
+  enemies.forEach((x) => x.draw());
   player_tail_sprite.size.copy(player_sprite.size);
   for (let k = 0; k < CONFIG.tail_frames; k++) {
     player_tail_sprite.position.copy(player_pos_history.get(k));
@@ -10901,21 +10972,6 @@ function clamp(value, a, b) {
   if (value > b)
     return b;
   return value;
-}
-function argmin(vals) {
-  if (vals.length === 0) {
-    return -1;
-  }
-  let best_index = 0;
-  let best_value = vals[0];
-  for (let k = 0; k < vals.length; k++) {
-    const cur = vals[k];
-    if (cur < best_value) {
-      best_index = k;
-      best_value = cur;
-    }
-  }
-  return best_index;
 }
 step();
 /**
