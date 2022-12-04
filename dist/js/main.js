@@ -763,13 +763,13 @@ var require_circle = __commonJS({
     "use strict";
     var MathHelper = require_math_helper();
     var Vector22 = require_vector2();
-    var Circle = class {
+    var Circle2 = class {
       constructor(center, radius) {
         this.center = center.clone();
         this.radius = radius;
       }
       clone() {
-        return new Circle(this.center, this.radius);
+        return new Circle2(this.center, this.radius);
       }
       containsVector(p) {
         return this.center.distanceTo(p) <= this.radius;
@@ -778,7 +778,7 @@ var require_circle = __commonJS({
         return other === this || other && other.constructor === this.constructor && this.center.equals(other.center) && this.radius == other.radius;
       }
       static fromDict(data) {
-        return new Circle(Vector22.fromDict(data.center || {}), data.radius || 0);
+        return new Circle2(Vector22.fromDict(data.center || {}), data.radius || 0);
       }
       toDict(minimized) {
         if (minimized) {
@@ -795,10 +795,10 @@ var require_circle = __commonJS({
       }
       static lerp(p1, p2, a) {
         let lerpScalar = MathHelper.lerp;
-        return new Circle(Vector22.lerp(p1.center, p2.center, a), lerpScalar(p1.radius, p2.radius, a));
+        return new Circle2(Vector22.lerp(p1.center, p2.center, a), lerpScalar(p1.radius, p2.radius, a));
       }
     };
-    module.exports = Circle;
+    module.exports = Circle2;
   }
 });
 
@@ -902,7 +902,7 @@ var require_line = __commonJS({
 var require_rectangle = __commonJS({
   "../Shaku/lib/utils/rectangle.js"(exports, module) {
     "use strict";
-    var Circle = require_circle();
+    var Circle2 = require_circle();
     var Line2 = require_line();
     var MathHelper = require_math_helper();
     var Vector22 = require_vector2();
@@ -1030,7 +1030,7 @@ var require_rectangle = __commonJS({
       getBoundingCircle() {
         let center = this.getCenter();
         let radius = center.distanceTo(this.getTopLeft());
-        return new Circle(center, radius);
+        return new Circle2(center, radius);
       }
       static fromPoints(points) {
         let min_x = points[0].x;
@@ -4899,7 +4899,7 @@ var require_gfx = __commonJS({
     var MsdfFontTextureAsset = require_msdf_font_texture_asset();
     var { TextAlignment, TextAlignments } = require_text_alignments();
     var Mesh = require_mesh();
-    var Circle = require_circle();
+    var Circle2 = require_circle();
     var SpriteBatch = require_sprite_batch();
     var Vector32 = require_vector3();
     var Vertex = require_vertex();
@@ -5477,7 +5477,7 @@ var require_gfx = __commonJS({
       }
       inScreen(shape) {
         let region = this.getRenderingRegion();
-        if (shape instanceof Circle) {
+        if (shape instanceof Circle2) {
           return region.collideCircle(shape);
         } else if (shape instanceof Vector22) {
           return region.containsVector(shape);
@@ -7035,7 +7035,7 @@ var require_point = __commonJS({
     var gfx = require_gfx2();
     var Vector22 = require_vector2();
     var Rectangle = require_rectangle();
-    var Circle = require_circle();
+    var Circle2 = require_circle();
     var PointShape = class extends CollisionShape {
       constructor(position) {
         super();
@@ -7066,7 +7066,7 @@ var require_point = __commonJS({
           opacity = 1;
         let color = this._getDebugColor();
         color.a *= opacity;
-        gfx.outlineCircle(new Circle(this.getPosition(), 3), color, gfx.BlendModes.AlphaBlend, 4);
+        gfx.outlineCircle(new Circle2(this.getPosition(), 3), color, gfx.BlendModes.AlphaBlend, 4);
       }
     };
     module.exports = PointShape;
@@ -7079,7 +7079,7 @@ var require_circle2 = __commonJS({
     "use strict";
     var CollisionShape = require_shape();
     var gfx = require_gfx2();
-    var Circle = require_circle();
+    var Circle2 = require_circle();
     var Rectangle = require_rectangle();
     var CircleShape = class extends CollisionShape {
       constructor(circle) {
@@ -7124,7 +7124,7 @@ var require_collision_world = __commonJS({
     "use strict";
     var Color3 = require_color();
     var Vector22 = require_vector2();
-    var Circle = require_circle();
+    var Circle2 = require_circle();
     var CollisionTestResult = require_result();
     var CollisionShape = require_shape();
     var gfx = require_gfx2();
@@ -7351,7 +7351,7 @@ var require_collision_world = __commonJS({
         return ret;
       }
       pick(position, radius, sortByDistance, mask, predicate) {
-        let shape = (radius || 0) <= 1 ? new PointShape(position) : new CircleShape(new Circle(position, radius));
+        let shape = (radius || 0) <= 1 ? new PointShape(position) : new CircleShape(new Circle2(position, radius));
         let ret = this.testCollisionMany(shape, sortByDistance, mask, predicate);
         return ret.map((x) => x.second);
       }
@@ -7559,7 +7559,7 @@ var require_lines = __commonJS({
     var gfx = require_gfx2();
     var Line2 = require_line();
     var Rectangle = require_rectangle();
-    var Circle = require_circle();
+    var Circle2 = require_circle();
     var LinesShape = class extends CollisionShape {
       constructor(lines) {
         super();
@@ -7582,7 +7582,7 @@ var require_lines = __commonJS({
           points.push(this._lines[i].to);
         }
         this._boundingBox = Rectangle.fromPoints(points);
-        this._circle = new Circle(this._boundingBox.getCenter(), Math.max(this._boundingBox.width, this._boundingBox.height));
+        this._circle = new Circle2(this._boundingBox.getCenter(), Math.max(this._boundingBox.width, this._boundingBox.height));
         this._shapeChanged();
       }
       setLines(lines) {
@@ -10662,6 +10662,7 @@ var GUI$1 = GUI;
 // src/main.ts
 var import_color = __toESM(require_color());
 var import_vector2 = __toESM(require_vector2());
+var import_circle = __toESM(require_circle());
 var import_double_ended_queue = __toESM(require_deque());
 var CONFIG = {
   player_speed: 355,
@@ -10672,17 +10673,19 @@ var CONFIG = {
   dash_cooldown: 0.4,
   dash_speed: 2600,
   tail_frames: 20,
-  dash_dist: 100,
+  dash_dist: 200,
   player_turn_speed_radians: 3,
   enemy_radius: 20,
-  enemy_throwback_dist: 150,
+  enemy_throwback_dist: 80,
   enemy_throwback_speed: 700,
   enemy_acc: 6,
   enemy_friction: 3,
   invincible_time: 0.3,
   player_acc: 5e3,
   player_friction: 12,
-  grab_dist: 20
+  grab_dist: 20,
+  ray_radius: 10,
+  dash_hit_duration: 0.13
 };
 var gui = new GUI$1({});
 gui.remember(CONFIG);
@@ -10697,7 +10700,7 @@ gui.add(CONFIG, "tail_frames", 0, 59);
 gui.add(CONFIG, "dash_dist", 0, 400);
 gui.add(CONFIG, "player_turn_speed_radians", 0, 20);
 gui.add(CONFIG, "enemy_throwback_dist", 0, 500);
-gui.add(CONFIG, "enemy_throwback_speed", 0, 500);
+gui.add(CONFIG, "enemy_throwback_speed", 0, 2e3);
 gui.add(CONFIG, "enemy_acc", 0, 50);
 gui.add(CONFIG, "enemy_friction", 0, 50);
 gui.add(CONFIG, "player_acc", 0, 8e3);
@@ -10749,20 +10752,18 @@ var Enemy = class {
   sprite;
   vel;
   update_and_draw(dt) {
-    if (this !== grabbed_enemy) {
-      this.vel.addSelf(player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_acc));
-      enemies.forEach((x) => {
-        if (x === this)
-          return;
-        let delta = this.pos.sub(x.pos);
-        let delta_len = delta.length;
-        if (delta_len < CONFIG.min_enemy_dist) {
-          this.vel.addSelf(delta.mulSelf(smoothstep(CONFIG.min_enemy_dist, CONFIG.min_enemy_dist * 0.95, delta_len) * CONFIG.separation_strength / delta_len));
-        }
-      });
-      this.vel.mulSelf(1 / (1 + dt * CONFIG.enemy_friction));
-      this.pos.addSelf(this.vel.mul(dt));
-    }
+    this.vel.addSelf(player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_acc));
+    enemies.forEach((x) => {
+      if (x === this)
+        return;
+      let delta = this.pos.sub(x.pos);
+      let delta_len = delta.length;
+      if (delta_len < CONFIG.min_enemy_dist) {
+        this.vel.addSelf(delta.mulSelf(smoothstep(CONFIG.min_enemy_dist, CONFIG.min_enemy_dist * 0.95, delta_len) * CONFIG.separation_strength / delta_len));
+      }
+    });
+    this.vel.mulSelf(1 / (1 + dt * CONFIG.enemy_friction));
+    this.pos.addSelf(this.vel.mul(dt));
     this.sprite.rotation = this.vel.getRadians();
     import_shaku.default.gfx.drawSprite(this.sprite);
   }
@@ -10782,7 +10783,6 @@ var enemies = [];
 for (let k = 0; k < 4; k++) {
   enemies.push(new Enemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 }
-var grabbed_enemy = null;
 function step() {
   import_shaku.default.startFrame();
   import_shaku.default.gfx.clear(import_shaku.default.utils.Color.cornflowerblue);
@@ -10795,25 +10795,21 @@ function step() {
     return;
   }
   cursor_sprite.position.copy(import_shaku.default.input.mousePosition);
-  if (false) {
-    time_since_dash = 0;
+  if (time_since_dash >= CONFIG.dash_cooldown) {
     last_dash_pos.copy(player_pos);
-    last_dash_dir = player_dir.clone();
+    last_dash_dir = cursor_sprite.position.sub(player_pos);
     last_dash_dist = CONFIG.dash_dist;
     last_dash_dir.normalizeSelf();
-    player_sprite.color = import_color.default.white;
-    setTimeout(() => {
-      player_sprite.color = import_color.default.black;
-    }, CONFIG.invincible_time * 1e3);
     let collision_distances = enemies.map((enemy) => {
       let closest_dist_along_ray = import_vector2.default.dot(last_dash_dir, enemy.pos.sub(player_pos));
-      if (closest_dist_along_ray < 0 || closest_dist_along_ray >= CONFIG.enemy_radius + last_dash_dist) {
+      if (closest_dist_along_ray < 0 || closest_dist_along_ray >= CONFIG.enemy_radius + CONFIG.ray_radius + last_dash_dist) {
         return Infinity;
       }
       let closest_point = player_pos.add(last_dash_dir.mul(closest_dist_along_ray));
       let closest_dist_to_enemy = import_vector2.default.distance(closest_point, enemy.pos);
-      if (closest_dist_to_enemy < CONFIG.enemy_radius) {
-        let dt = Math.sqrt(CONFIG.enemy_radius * CONFIG.enemy_radius - closest_dist_to_enemy * closest_dist_to_enemy);
+      if (closest_dist_to_enemy < CONFIG.enemy_radius + CONFIG.ray_radius) {
+        let helper = CONFIG.enemy_radius + CONFIG.ray_radius;
+        let dt = Math.sqrt(helper * helper - closest_dist_to_enemy * closest_dist_to_enemy);
         let collision_dist = closest_dist_along_ray - dt;
         if (collision_dist > 0 && collision_dist <= last_dash_dist) {
           return collision_dist;
@@ -10822,20 +10818,17 @@ function step() {
       return Infinity;
     });
     let closest_enemy_index = argmin(collision_distances);
+    import_shaku.default.gfx.drawLine(last_dash_pos, last_dash_pos.add(last_dash_dir.mul(last_dash_dist)), import_color.default.white);
     if (collision_distances[closest_enemy_index] < Infinity) {
-      enemies[closest_enemy_index].pos.addSelf(last_dash_dir.mul(CONFIG.enemy_throwback_dist));
-      enemies[closest_enemy_index].vel.addSelf(last_dash_dir.mul(CONFIG.enemy_throwback_speed));
+      import_shaku.default.gfx.outlineCircle(new import_circle.default(enemies[closest_enemy_index].pos, 20), import_color.default.white);
     }
-    player_pos.addSelf(last_dash_dir.mul(last_dash_dist));
-  }
-  if (grabbed_enemy === null) {
     if (import_shaku.default.input.mousePressed()) {
-      grabbed_enemy = enemies.find((enemy) => cursor_sprite.position.sub(enemy.pos).length < CONFIG.grab_dist) || null;
-    }
-  } else {
-    grabbed_enemy.pos.copy(cursor_sprite.position);
-    if (import_shaku.default.input.mouseReleased()) {
-      grabbed_enemy = null;
+      time_since_dash = 0;
+      if (collision_distances[closest_enemy_index] < Infinity) {
+        enemies[closest_enemy_index].pos.addSelf(last_dash_dir.mul(CONFIG.enemy_throwback_dist));
+        enemies[closest_enemy_index].vel.addSelf(last_dash_dir.mul(CONFIG.enemy_throwback_speed));
+        last_dash_dist = collision_distances[closest_enemy_index];
+      }
     }
   }
   if (time_since_dash < CONFIG.dash_duration) {
@@ -10908,6 +10901,21 @@ function clamp(value, a, b) {
   if (value > b)
     return b;
   return value;
+}
+function argmin(vals) {
+  if (vals.length === 0) {
+    return -1;
+  }
+  let best_index = 0;
+  let best_value = vals[0];
+  for (let k = 0; k < vals.length; k++) {
+    const cur = vals[k];
+    if (cur < best_value) {
+      best_index = k;
+      best_value = cur;
+    }
+  }
+  return best_index;
 }
 step();
 /**

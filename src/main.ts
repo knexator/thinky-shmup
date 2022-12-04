@@ -5,6 +5,7 @@ import * as dat from 'dat.gui';
 import Color from "shaku/lib/utils/color";
 import Vector2 from "shaku/lib/utils/vector2";
 import Sprite from "shaku/lib/gfx/sprite";
+import Circle from "shaku/lib/utils/circle";
 
 import Deque from "double-ended-queue";
 
@@ -17,10 +18,10 @@ const CONFIG = {
     dash_cooldown: .4,
     dash_speed: 2600, // double speed idk
     tail_frames: 20,
-    dash_dist: 100,
+    dash_dist: 200,
     player_turn_speed_radians: 3,
     enemy_radius: 20,
-    enemy_throwback_dist: 150, // same as dash dist idk
+    enemy_throwback_dist: 80,
     enemy_throwback_speed: 700,
     enemy_acc: 6,
     enemy_friction: 3,
@@ -28,6 +29,8 @@ const CONFIG = {
     player_acc: 5000,
     player_friction: 12,
     grab_dist: 20,
+    ray_radius: 10,
+    dash_hit_duration: 0.13,
 };
 let gui = new dat.GUI({});
 gui.remember(CONFIG);
@@ -42,7 +45,7 @@ gui.add(CONFIG, "tail_frames", 0, 59);
 gui.add(CONFIG, "dash_dist", 0, 400);
 gui.add(CONFIG, "player_turn_speed_radians", 0, 20);
 gui.add(CONFIG, "enemy_throwback_dist", 0, 500);
-gui.add(CONFIG, "enemy_throwback_speed", 0, 500);
+gui.add(CONFIG, "enemy_throwback_speed", 0, 2000);
 gui.add(CONFIG, "enemy_acc", 0, 50);
 gui.add(CONFIG, "enemy_friction", 0, 50);
 gui.add(CONFIG, "player_acc", 0, 8000);
@@ -111,22 +114,22 @@ class Enemy {
     }
 
     update_and_draw(dt: number) {
-        if (this !== grabbed_enemy) {
-            // there should be a dt in these calculations, but i don't wan't to change the CONFIG values rn
-            this.vel.addSelf(player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_acc));
-            // this.vel = player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_speed);
-            enemies.forEach(x => {
-                if (x === this) return;
-                let delta = this.pos.sub(x.pos);
-                let delta_len = delta.length;
-                if (delta_len < CONFIG.min_enemy_dist) {
-                    this.vel.addSelf(delta.mulSelf(smoothstep(CONFIG.min_enemy_dist, CONFIG.min_enemy_dist * .95, delta_len) * CONFIG.separation_strength / delta_len));
-                }
-            })
+        // if (this !== grabbed_enemy) {
+        // there should be a dt in these calculations, but i don't wan't to change the CONFIG values rn
+        this.vel.addSelf(player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_acc));
+        // this.vel = player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_speed);
+        enemies.forEach(x => {
+            if (x === this) return;
+            let delta = this.pos.sub(x.pos);
+            let delta_len = delta.length;
+            if (delta_len < CONFIG.min_enemy_dist) {
+                this.vel.addSelf(delta.mulSelf(smoothstep(CONFIG.min_enemy_dist, CONFIG.min_enemy_dist * .95, delta_len) * CONFIG.separation_strength / delta_len));
+            }
+        })
 
-            this.vel.mulSelf(1 / (1 + (dt * CONFIG.enemy_friction)));
-            this.pos.addSelf(this.vel.mul(dt));
-        }
+        this.vel.mulSelf(1 / (1 + (dt * CONFIG.enemy_friction)));
+        this.pos.addSelf(this.vel.mul(dt));
+        // }
         this.sprite.rotation = this.vel.getRadians();
         Shaku.gfx.drawSprite(this.sprite);
     }
@@ -136,6 +139,12 @@ let time_since_dash = Infinity;
 let last_dash_pos = Vector2.zero;
 let last_dash_dir = Vector2.zero;
 let last_dash_dist = 0;
+
+let cur_hit: {
+    hitter: Enemy,
+    hitted: Enemy,
+    time_until_end: number,
+} | null = null;
 
 let player_pos = Shaku.gfx.getCanvasSize().mulSelf(.5);
 let player_dir = Vector2.right;
@@ -151,7 +160,7 @@ for (let k = 0; k < 4; k++) {
     enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 }
 
-let grabbed_enemy: Enemy | null = null;
+// let grabbed_enemy: Enemy | null = null;
 
 // do a single main loop step and request the next step
 function step() {
@@ -176,31 +185,31 @@ function step() {
     // cursor_sprite.position = Shaku.input.mousePosition.sub(mid_screen).normalizeSelf().mulSelf(mid_screen.y * .9).addSelf(mid_screen);
 
     // Single frame dash
-    if (false && time_since_dash >= CONFIG.dash_cooldown && Shaku.input.mousePressed()) {
-        time_since_dash = 0;
+    if (time_since_dash >= CONFIG.dash_cooldown) {
         last_dash_pos.copy(player_pos);
-        last_dash_dir = player_dir.clone();
-        // last_dash_dir = Shaku.input.mousePosition.sub(player_pos);
+        // last_dash_dir = player_dir.clone();
+        last_dash_dir = (cursor_sprite.position as Vector2).sub(player_pos);
         // last_dash_dist = Math.min(CONFIG.dash_dist, last_dash_dir.length);
         last_dash_dist = CONFIG.dash_dist;
         last_dash_dir.normalizeSelf();
-        player_sprite.color = Color.white;
-        setTimeout(() => {
-            player_sprite.color = Color.black;
-        }, CONFIG.invincible_time * 1000);
+        // player_sprite.color = Color.white;
+        // setTimeout(() => {
+        //     player_sprite.color = Color.black;
+        // }, CONFIG.invincible_time * 1000);
 
         // collision with enemies
         let collision_distances = enemies.map(enemy => {
             // ray-circle collision from https://stackoverflow.com/a/1088058/5120619
             let closest_dist_along_ray = Vector2.dot(last_dash_dir, enemy.pos.sub(player_pos));
-            if (closest_dist_along_ray < 0 || closest_dist_along_ray >= CONFIG.enemy_radius + last_dash_dist) {
+            if (closest_dist_along_ray < 0 || closest_dist_along_ray >= CONFIG.enemy_radius + CONFIG.ray_radius + last_dash_dist) {
                 // early stop
                 return Infinity;
             }
             let closest_point = player_pos.add(last_dash_dir.mul(closest_dist_along_ray));
             let closest_dist_to_enemy = Vector2.distance(closest_point, enemy.pos);
-            if (closest_dist_to_enemy < CONFIG.enemy_radius) {
-                let dt = Math.sqrt(CONFIG.enemy_radius * CONFIG.enemy_radius - closest_dist_to_enemy * closest_dist_to_enemy);
+            if (closest_dist_to_enemy < CONFIG.enemy_radius + CONFIG.ray_radius) {
+                let helper = CONFIG.enemy_radius + CONFIG.ray_radius;
+                let dt = Math.sqrt(helper * helper - closest_dist_to_enemy * closest_dist_to_enemy);
                 let collision_dist = closest_dist_along_ray - dt;
                 if (collision_dist > 0 && collision_dist <= last_dash_dist) {
                     return collision_dist;
@@ -209,29 +218,38 @@ function step() {
             return Infinity;
         });
         let closest_enemy_index = argmin(collision_distances);
+
+        Shaku.gfx.drawLine(last_dash_pos, last_dash_pos.add(last_dash_dir.mul(last_dash_dist)), Color.white);
         if (collision_distances[closest_enemy_index] < Infinity) {
-            // actual collision
-            // todo: better collision
-            enemies[closest_enemy_index].pos.addSelf(last_dash_dir.mul(CONFIG.enemy_throwback_dist));
-            enemies[closest_enemy_index].vel.addSelf(last_dash_dir.mul(CONFIG.enemy_throwback_speed));
-
-            // should player keep on dashing?
-            // last_dash_dist = collision_distances[closest_enemy_index];
+            Shaku.gfx.outlineCircle(new Circle(enemies[closest_enemy_index].pos, 20), Color.white);
         }
 
-        player_pos.addSelf(last_dash_dir.mul(last_dash_dist));
-    }
-
-    if (grabbed_enemy === null) {
         if (Shaku.input.mousePressed()) {
-            grabbed_enemy = enemies.find(enemy => cursor_sprite.position.sub(enemy.pos).length < CONFIG.grab_dist) || null;
-        }
-    } else {
-        grabbed_enemy.pos.copy(cursor_sprite.position);
-        if (Shaku.input.mouseReleased()) {
-            grabbed_enemy = null;
+            time_since_dash = 0;
+            if (collision_distances[closest_enemy_index] < Infinity) {
+                // actual collision
+                // todo: better collision
+                enemies[closest_enemy_index].pos.addSelf(last_dash_dir.mul(CONFIG.enemy_throwback_dist));
+                enemies[closest_enemy_index].vel.addSelf(last_dash_dir.mul(CONFIG.enemy_throwback_speed));
+
+                // should player keep on dashing?
+                last_dash_dist = collision_distances[closest_enemy_index];
+            }
+
+            // player_pos.addSelf(last_dash_dir.mul(last_dash_dist));
         }
     }
+
+    // if (grabbed_enemy === null) {
+    //     if (Shaku.input.mousePressed()) {
+    //         grabbed_enemy = enemies.find(enemy => cursor_sprite.position.sub(enemy.pos).length < CONFIG.grab_dist) || null;
+    //     }
+    // } else {
+    //     grabbed_enemy.pos.copy(cursor_sprite.position);
+    //     if (Shaku.input.mouseReleased()) {
+    //         grabbed_enemy = null;
+    //     }
+    // }
 
     if (time_since_dash < CONFIG.dash_duration) {
         // draw dash trail
