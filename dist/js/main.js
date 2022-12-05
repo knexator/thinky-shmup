@@ -1793,7 +1793,7 @@ var require_animator = __commonJS({
           let a = this._smoothDamp && this._progress < 1 ? this._progress * (1 + 1 - this._progress) : this._progress;
           let newValue = null;
           if (typeof fromValue === "number") {
-            newValue = lerp(fromValue, toValue, a);
+            newValue = lerp2(fromValue, toValue, a);
           } else if (fromValue.constructor.lerp) {
             newValue = fromValue.constructor.lerp(fromValue, toValue, a);
           } else {
@@ -1921,7 +1921,7 @@ var require_animator = __commonJS({
         }
       }
     };
-    function lerp(start, end, amt) {
+    function lerp2(start, end, amt) {
       return (1 - amt) * start + amt * end;
     }
     module.exports = Animator;
@@ -2018,7 +2018,7 @@ var require_perlin = __commonJS({
   "../Shaku/lib/utils/perlin.js"(exports, module) {
     "use strict";
     var MathHelper = require_math_helper();
-    var lerp = MathHelper.lerp;
+    var lerp2 = MathHelper.lerp;
     function fade(t) {
       return t * t * t * (t * (t * 6 - 15) + 10);
     }
@@ -2358,9 +2358,9 @@ var require_perlin = __commonJS({
         var n10 = gradP[X + 1 + perm[Y]].dot2(x - 1, y) * contrast;
         var n11 = gradP[X + 1 + perm[Y + 1]].dot2(x - 1, y - 1) * contrast;
         var u = fade(x);
-        return Math.min(lerp(
-          lerp(n00, n10, u),
-          lerp(n01, n11, u),
+        return Math.min(lerp2(
+          lerp2(n00, n10, u),
+          lerp2(n01, n11, u),
           fade(y)
         ) + 0.5, 1);
       }
@@ -10668,8 +10668,8 @@ var import_double_ended_queue = __toESM(require_deque());
 var CONFIG = {
   player_speed: 355,
   enemy_speed: 150,
-  min_enemy_dist: 100,
-  separation_strength: 800,
+  min_enemy_dist: 120,
+  separation_strength: 250,
   dash_duration: 0.07,
   dash_cooldown: 0.4,
   dash_speed: 2600,
@@ -10682,6 +10682,9 @@ var CONFIG = {
   enemy_second_hit_dist: 120,
   enemy_acc: 360,
   enemy_friction: 3,
+  dodge_acc: 1500,
+  dodge_prevision_time: 0.5,
+  dodge_prevision_dot: 0.15,
   invincible_time: 0.3,
   player_acc: 5e3,
   player_friction: 12,
@@ -10692,7 +10695,9 @@ var CONFIG = {
   dash_dir_override: 5,
   screen_shake_size: 33,
   screen_shake_speed: 21,
-  hit_slowdown: 0.3
+  hit_slowdown: 0.3,
+  steer_resolution: 64,
+  debug_steer: 0.1
 };
 var gui = new GUI$1({});
 gui.remember(CONFIG);
@@ -10711,6 +10716,9 @@ gui.add(CONFIG, "enemy_throwback_speed", 0, 2e3);
 gui.add(CONFIG, "enemy_second_hit_dist", 0, 500);
 gui.add(CONFIG, "enemy_acc", 0, 1e3);
 gui.add(CONFIG, "enemy_friction", 0, 50);
+gui.add(CONFIG, "dodge_acc", 0, 2e3);
+gui.add(CONFIG, "dodge_prevision_time", 0, 1);
+gui.add(CONFIG, "dodge_prevision_dot", 0, 1);
 gui.add(CONFIG, "player_acc", 0, 8e3);
 gui.add(CONFIG, "player_friction", 0, 50);
 gui.add(CONFIG, "grab_dist", 0, 50);
@@ -10719,6 +10727,7 @@ gui.add(CONFIG, "dash_dir_override", 0, 5);
 gui.add(CONFIG, "screen_shake_size", 0, 100);
 gui.add(CONFIG, "screen_shake_speed", 0, 100);
 gui.add(CONFIG, "hit_slowdown", 0, 1);
+gui.add(CONFIG, "debug_steer", 0, 1);
 import_shaku.default.input.setTargetElement(() => import_shaku.default.gfx.canvas);
 await import_shaku.default.init([import_shaku.default.assets, import_shaku.default.sfx, import_shaku.default.gfx, import_shaku.default.input]);
 document.body.appendChild(import_shaku.default.gfx.canvas);
@@ -10743,33 +10752,83 @@ enemy_texture.filter = import_gfx.TextureFilterModes.Linear;
 var enemy_hit_trail_sprite = new import_shaku.default.gfx.Sprite(enemy_texture);
 enemy_hit_trail_sprite.size.mulSelf(CONFIG.enemy_radius / 50);
 enemy_hit_trail_sprite.color = new import_color.default(1, 1, 1, 0.125);
+function setSteer(steer, fn) {
+  for (let k = 0; k < CONFIG.steer_resolution; k++) {
+    steer[k] = fn(import_vector2.default.fromRadians(Math.PI * 2 * k / CONFIG.steer_resolution));
+  }
+}
+function addSteer(steer, fn) {
+  for (let k = 0; k < CONFIG.steer_resolution; k++) {
+    steer[k] += fn(import_vector2.default.fromRadians(Math.PI * 2 * k / CONFIG.steer_resolution));
+  }
+}
+function bestDir(steer) {
+  let best_index = argmax(steer);
+  return import_vector2.default.fromRadians(Math.PI * 2 * best_index / CONFIG.steer_resolution).mulSelf(steer[best_index]);
+}
 var Enemy = class {
   constructor(pos) {
     this.pos = pos;
     this.sprite = new import_shaku.default.gfx.Sprite(enemy_texture);
     this.sprite.size.mulSelf(CONFIG.enemy_radius / 50);
     this.vel = import_vector2.default.zero;
+    this.steer = Array(CONFIG.steer_resolution).fill(0);
     this.sprite.position = pos;
   }
   sprite;
   vel;
+  steer;
   update(dt) {
-    this.vel.addSelf(player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_acc * dt));
-    enemies.forEach((x) => {
-      if (x === this)
+    let player_dir2 = player_pos.sub(this.pos).normalizeSelf();
+    setSteer(this.steer, (v) => {
+      return (import_vector2.default.dot(v, player_dir2) + 1) * 0.5 * CONFIG.enemy_acc;
+    });
+    enemies.forEach((other) => {
+      if (other === this)
         return;
-      let delta = this.pos.sub(x.pos);
+      let delta = this.pos.sub(other.pos);
       let delta_len = delta.length;
+      let delta_dir = delta.normalized();
       if (delta_len < CONFIG.min_enemy_dist) {
-        this.vel.addSelf(delta.mulSelf(dt * smoothstep(CONFIG.min_enemy_dist, CONFIG.min_enemy_dist * 0.95, delta_len) * CONFIG.separation_strength / delta_len));
+        addSteer(this.steer, (v) => {
+          return (1 - Math.abs(import_vector2.default.dot(v, delta_dir) - 0.65)) * CONFIG.separation_strength * lerp(2, 0, delta_len / CONFIG.min_enemy_dist);
+        });
+      }
+      let other_speed = other.vel.length;
+      let other_dir = other.vel.mul(1 / other_speed);
+      if (other_speed > this.vel.length * 1.5 && import_vector2.default.dot(delta_dir, other.vel.normalized()) > CONFIG.dodge_prevision_dot) {
+        let remaining_time = delta_len / other_speed;
+        if (remaining_time < CONFIG.dodge_prevision_time) {
+          let closest_dist_along_ray = import_vector2.default.dot(other_dir, delta);
+          let closest_point_along_ray = other_dir.mul(closest_dist_along_ray).subSelf(delta);
+          if (closest_point_along_ray.length < CONFIG.enemy_radius * 3) {
+            let dodge_dir = closest_point_along_ray.mul(-1).normalizeSelf();
+            addSteer(this.steer, (v) => {
+              let dot = import_vector2.default.dot(v, dodge_dir);
+              if (dot > 0.5) {
+                return (dot - 0.5) * 2 * CONFIG.dodge_acc;
+              } else if (dot < -0.5) {
+                return (dot + 0.5) * 2 * CONFIG.dodge_acc;
+              } else {
+                return 0;
+              }
+            });
+          }
+        }
       }
     });
+    this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
     this.vel.mulSelf(1 / (1 + dt * CONFIG.enemy_friction));
     this.pos.addSelf(this.vel.mul(dt));
   }
   draw() {
     this.sprite.rotation = this.vel.getRadians();
     import_shaku.default.gfx.drawSprite(this.sprite);
+    for (let k = 0; k < CONFIG.steer_resolution; k++) {
+      import_shaku.default.gfx.drawLine(this.pos, this.pos.add(
+        import_vector2.default.fromRadians(Math.PI * 2 * k / CONFIG.steer_resolution).mulSelf(CONFIG.debug_steer * Math.abs(this.steer[k]))
+      ), this.steer[k] >= 0 ? import_color.default.green : import_color.default.red);
+    }
   }
 };
 var time_since_dash = Infinity;
@@ -10962,9 +11021,8 @@ async function loadAsciiTexture(ascii, colors) {
   import_shaku.default.gfx.setRenderTarget(null, false);
   return renderTarget;
 }
-function smoothstep(toZero, toOne, value) {
-  let x = Math.max(0, Math.min(1, (value - toZero) / (toOne - toZero)));
-  return x * x * (3 - 2 * x);
+function lerp(a, b, t) {
+  return a * (1 - t) + b * t;
 }
 function clamp(value, a, b) {
   if (value < a)
@@ -10972,6 +11030,21 @@ function clamp(value, a, b) {
   if (value > b)
     return b;
   return value;
+}
+function argmax(vals) {
+  if (vals.length === 0) {
+    return -1;
+  }
+  let best_index = 0;
+  let best_value = vals[0];
+  for (let k = 0; k < vals.length; k++) {
+    const cur = vals[k];
+    if (cur > best_value) {
+      best_index = k;
+      best_value = cur;
+    }
+  }
+  return best_index;
 }
 step();
 /**

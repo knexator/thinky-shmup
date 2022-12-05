@@ -13,8 +13,8 @@ import Deque from "double-ended-queue";
 const CONFIG = {
     player_speed: 355, // 2.25s to cross the 800px screen
     enemy_speed: 150, // about half?
-    min_enemy_dist: 100,
-    separation_strength: 800,
+    min_enemy_dist: 120,
+    separation_strength: 250,
     dash_duration: 0.07,
     dash_cooldown: .4,
     dash_speed: 2600, // double speed idk
@@ -27,6 +27,9 @@ const CONFIG = {
     enemy_second_hit_dist: 120, // a bit more than throwback dist, to account for speed
     enemy_acc: 360,
     enemy_friction: 3,
+    dodge_acc: 1500,
+    dodge_prevision_time: .5,
+    dodge_prevision_dot: .15,
     invincible_time: .3,
     player_acc: 5000,
     player_friction: 12,
@@ -38,6 +41,8 @@ const CONFIG = {
     screen_shake_size: 33,
     screen_shake_speed: 21,
     hit_slowdown: 0.3,
+    steer_resolution: 64,
+    debug_steer: .1,
 };
 let gui = new dat.GUI({});
 gui.remember(CONFIG);
@@ -56,6 +61,9 @@ gui.add(CONFIG, "enemy_throwback_speed", 0, 2000);
 gui.add(CONFIG, "enemy_second_hit_dist", 0, 500);
 gui.add(CONFIG, "enemy_acc", 0, 1000);
 gui.add(CONFIG, "enemy_friction", 0, 50);
+gui.add(CONFIG, "dodge_acc", 0, 2000);
+gui.add(CONFIG, "dodge_prevision_time", 0, 1);
+gui.add(CONFIG, "dodge_prevision_dot", 0, 1);
 gui.add(CONFIG, "player_acc", 0, 8000);
 gui.add(CONFIG, "player_friction", 0, 50);
 gui.add(CONFIG, "grab_dist", 0, 50);
@@ -64,6 +72,7 @@ gui.add(CONFIG, "dash_dir_override", 0, 5);
 gui.add(CONFIG, "screen_shake_size", 0, 100);
 gui.add(CONFIG, "screen_shake_speed", 0, 100);
 gui.add(CONFIG, "hit_slowdown", 0, 1);
+gui.add(CONFIG, "debug_steer", 0, 1);
 
 // init shaku
 Shaku.input.setTargetElement(() => Shaku.gfx.canvas)
@@ -103,29 +112,87 @@ let enemy_hit_trail_sprite = new Shaku.gfx!.Sprite(enemy_texture);
 enemy_hit_trail_sprite.size.mulSelf(CONFIG.enemy_radius / 50);
 enemy_hit_trail_sprite.color = new Color(1, 1, 1, .125);
 
+function setSteer(steer: number[], fn: (dir: Vector2) => number) {
+    for (let k = 0; k < CONFIG.steer_resolution; k++) {
+        steer[k] = fn(Vector2.fromRadians(Math.PI * 2 * k / CONFIG.steer_resolution));
+    }
+}
+
+function addSteer(steer: number[], fn: (dir: Vector2) => number) {
+    for (let k = 0; k < CONFIG.steer_resolution; k++) {
+        steer[k] += fn(Vector2.fromRadians(Math.PI * 2 * k / CONFIG.steer_resolution));
+    }
+}
+
+function bestDir(steer: number[]) {
+    let best_index = argmax(steer);
+    return Vector2.fromRadians(Math.PI * 2 * best_index / CONFIG.steer_resolution).mulSelf(steer[best_index]);
+}
+
 class Enemy {
     public sprite: Sprite
     public vel: Vector2
+    public steer: number[]
     constructor(
         public pos: Vector2,
     ) {
         this.sprite = new Shaku.gfx!.Sprite(enemy_texture);
         this.sprite.size.mulSelf(CONFIG.enemy_radius / 50);
         this.vel = Vector2.zero;
+        this.steer = Array(CONFIG.steer_resolution).fill(0);
 
         this.sprite.position = pos;
     }
 
     update(dt: number) {
-        this.vel.addSelf(player_pos.sub(this.pos).normalizeSelf().mulSelf(CONFIG.enemy_acc * dt));
-        enemies.forEach(x => {
-            if (x === this) return;
-            let delta = this.pos.sub(x.pos);
-            let delta_len = delta.length;
-            if (delta_len < CONFIG.min_enemy_dist) {
-                this.vel.addSelf(delta.mulSelf(dt * smoothstep(CONFIG.min_enemy_dist, CONFIG.min_enemy_dist * .95, delta_len) * CONFIG.separation_strength / delta_len));
-            }
+        // Chase steer
+        let player_dir = player_pos.sub(this.pos).normalizeSelf();
+        setSteer(this.steer, v => {
+            return (Vector2.dot(v, player_dir) + 1) * .5 * CONFIG.enemy_acc;
         })
+        enemies.forEach(other => {
+            if (other === this) return;
+            let delta = this.pos.sub(other.pos);
+            let delta_len = delta.length;
+            let delta_dir = delta.normalized();
+
+            // try to hover at a CONFIG.min_enemy_dist distance
+            if (delta_len < CONFIG.min_enemy_dist) {
+                addSteer(this.steer, v => {
+                    return (1.0 - Math.abs(Vector2.dot(v, delta_dir) - .65)) * CONFIG.separation_strength * lerp(2, 0, delta_len / CONFIG.min_enemy_dist);
+                })
+            }
+
+            // avoid hurling enemies
+            let other_speed = other.vel.length;
+            let other_dir = other.vel.mul(1 / other_speed);
+            // if enemy is hurling in our general direction...
+            if (other_speed > this.vel.length * 1.5 && Vector2.dot(delta_dir, other.vel.normalized()) > CONFIG.dodge_prevision_dot) {
+                // time until impact, only taking other enemy into account
+                let remaining_time = delta_len / other_speed;
+                if (remaining_time < CONFIG.dodge_prevision_time) {
+                    let closest_dist_along_ray = Vector2.dot(other_dir, delta);
+                    let closest_point_along_ray = other_dir.mul(closest_dist_along_ray).subSelf(delta);
+                    if (closest_point_along_ray.length < CONFIG.enemy_radius * 3) {
+                        let dodge_dir = closest_point_along_ray.mul(-1).normalizeSelf();
+                        addSteer(this.steer, v => {
+                            let dot = Vector2.dot(v, dodge_dir);
+                            if (dot > .5) {
+                                return (dot - .5) * 2 * CONFIG.dodge_acc;
+                            } else if (dot < -.5) {
+                                return (dot + .5) * 2 * CONFIG.dodge_acc;
+                            } else {
+                                return 0;
+                            }
+                            // return (.5 - Math.abs(Vector2.dot(v, other_dir))) * CONFIG.dodge_acc;
+                            // return (1.0 - Math.abs(Vector2.dot(v, delta) - .65)) * CONFIG.dodge_acc;
+                        })
+                    }
+                }
+            }
+
+        })
+        this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
         this.vel.mulSelf(1 / (1 + (dt * CONFIG.enemy_friction)));
         this.pos.addSelf(this.vel.mul(dt));
     }
@@ -133,6 +200,11 @@ class Enemy {
     draw() {
         this.sprite.rotation = this.vel.getRadians();
         Shaku.gfx.drawSprite(this.sprite);
+        for (let k = 0; k < CONFIG.steer_resolution; k++) {
+            Shaku.gfx.drawLine(this.pos, this.pos.add(
+                Vector2.fromRadians(Math.PI * 2 * k / CONFIG.steer_resolution).mulSelf(CONFIG.debug_steer * Math.abs(this.steer[k]))
+            ), this.steer[k] >= 0 ? Color.green : Color.red);
+        }
     }
 }
 
@@ -466,6 +538,21 @@ function rotateTowards(cur_val: Vector2, target_val: Vector2, max_radians: numbe
     radians = mod(radians + Math.PI + eps, Math.PI * 2) - Math.PI + eps;
     radians = clamp(radians, -max_radians, max_radians);
     return cur_val.rotatedRadians(radians);
+}
+function argmax(vals: number[]) {
+    if (vals.length === 0) {
+        return -1;
+    }
+    let best_index = 0;
+    let best_value = vals[0];
+    for (let k = 0; k < vals.length; k++) {
+        const cur = vals[k];
+        if (cur > best_value) {
+            best_index = k;
+            best_value = cur;
+        }
+    }
+    return best_index;
 }
 
 function argmin(vals: number[]) {
