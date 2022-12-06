@@ -4,8 +4,8 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __commonJS = (cb, mod) => function __require() {
-  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+var __commonJS = (cb, mod2) => function __require() {
+  return mod2 || (0, cb[__getOwnPropNames(cb)[0]])((mod2 = { exports: {} }).exports, mod2), mod2.exports;
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -15,9 +15,9 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-  mod
+var __toESM = (mod2, isNodeMode, target) => (target = mod2 != null ? __create(__getProtoOf(mod2)) : {}, __copyProps(
+  isNodeMode || !mod2 || !mod2.__esModule ? __defProp(target, "default", { value: mod2, enumerable: true }) : target,
+  mod2
 ));
 
 // ../Shaku/lib/manager.js
@@ -10700,7 +10700,8 @@ var CONFIG = {
   debug_steer: 0.1,
   bullet_speed: 200,
   bullet_radius: 30,
-  turret_delay: 3
+  turret_delay: 3,
+  delayed_rot_speed: 1
 };
 var gui = new GUI$1({});
 gui.remember(CONFIG);
@@ -10785,17 +10786,39 @@ var Bullet = class {
     import_shaku.default.gfx.drawSprite(this.sprite);
   }
 };
+var StaticBullet = class extends Bullet {
+  constructor(pos, remaining_life) {
+    super(pos, import_vector2.default.zero);
+    this.pos = pos;
+    this.remaining_life = remaining_life;
+    this.sprite = new import_shaku.default.gfx.Sprite(bullet_texture);
+    this.sprite.size.mulSelf(CONFIG.bullet_radius / 50);
+    this.sprite.position = pos;
+  }
+  sprite;
+  update(dt) {
+    this.remaining_life -= dt;
+    if (this.remaining_life <= 0) {
+      bullets = bullets.filter((x) => x !== this);
+    }
+  }
+  draw() {
+    import_shaku.default.gfx.drawSprite(this.sprite);
+  }
+};
 var Enemy = class {
   constructor(pos) {
     this.pos = pos;
     this.sprite = new import_shaku.default.gfx.Sprite(enemy_texture);
     this.sprite.size.mulSelf(CONFIG.enemy_radius / 50);
+    this.dir = import_vector2.default.right;
     this.vel = import_vector2.default.zero;
     this.steer = Array(CONFIG.steer_resolution).fill(0);
     this.sprite.position = pos;
   }
   sprite;
   vel;
+  dir;
   steer;
   steer_chaseDir(target_dir, acc) {
     addSteer(this.steer, (v) => {
@@ -10845,6 +10868,9 @@ var Enemy = class {
     this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
     this.vel.mulSelf(1 / (1 + dt * CONFIG.enemy_friction));
     this.pos.addSelf(this.vel.mul(dt));
+    if (this.vel.x !== 0 || this.vel.y !== 0) {
+      this.dir.copy(this.vel).normalizeSelf();
+    }
   }
   update(dt) {
     this.steer.fill(0);
@@ -10853,13 +10879,34 @@ var Enemy = class {
     this.endUpdate(dt);
   }
   draw() {
-    this.sprite.rotation = this.vel.getRadians();
+    this.sprite.rotation = this.dir.getRadians();
     import_shaku.default.gfx.drawSprite(this.sprite);
-    for (let k = 0; k < CONFIG.steer_resolution; k++) {
-      import_shaku.default.gfx.drawLine(this.pos, this.pos.add(
-        import_vector2.default.fromRadians(Math.PI * 2 * k / CONFIG.steer_resolution).mulSelf(CONFIG.debug_steer * Math.abs(this.steer[k]))
-      ), this.steer[k] >= 0 ? import_color.default.green : import_color.default.red);
+  }
+};
+var DelayedEnemy = class extends Enemy {
+  cur_goal;
+  constructor(pos) {
+    super(pos);
+    this.cur_goal = null;
+  }
+  update(dt) {
+    this.steer.fill(0);
+    if (this.cur_goal === null) {
+      let delta = player_pos.sub(this.pos);
+      this.dir = rotateTowards(this.dir, delta, CONFIG.delayed_rot_speed * dt);
+      if (Math.abs(radiansBetween(this.dir, delta.normalized())) <= 1e-4) {
+        this.cur_goal = player_pos.clone();
+      }
+    } else {
+      this.steer_chaseDir(this.dir, CONFIG.enemy_speed * 30);
+      if (import_vector2.default.dot(this.dir, this.cur_goal.sub(this.pos)) <= 0) {
+        this.cur_goal = null;
+      }
     }
+    this.steer_hoverAndDodge();
+    this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
+    this.vel.mulSelf(1 / (1 + dt * CONFIG.enemy_friction * 3));
+    this.pos.addSelf(this.vel.mul(dt));
   }
 };
 var SpiralMoveEnemy = class extends Enemy {
@@ -10872,20 +10919,62 @@ var SpiralMoveEnemy = class extends Enemy {
     this.endUpdate(dt);
   }
 };
+var SpiralTrailEnemy = class extends Enemy {
+  time_until_next_bullet;
+  constructor(pos) {
+    super(pos);
+    this.time_until_next_bullet = Math.random() * CONFIG.turret_delay * 0.1;
+  }
+  update(dt) {
+    this.steer.fill(0);
+    let delta = player_pos.sub(this.pos);
+    let perp = delta.rotatedDegrees(90).mulSelf(0.5);
+    this.steer_chaseDir(import_vector2.default.lerp(delta, perp, 0.7).normalizeSelf(), CONFIG.enemy_acc * 2);
+    this.time_until_next_bullet -= dt;
+    if (this.time_until_next_bullet <= 0) {
+      this.time_until_next_bullet = CONFIG.turret_delay * 0.1;
+      bullets.push(new StaticBullet(this.pos.clone(), 4));
+    }
+    this.steer_hoverAndDodge();
+    this.endUpdate(dt);
+  }
+};
+var SpiralTurretEnemy = class extends Enemy {
+  time_until_next_shoot;
+  constructor(pos) {
+    super(pos);
+    this.time_until_next_shoot = CONFIG.turret_delay * Math.random() * 0.1;
+  }
+  update(dt) {
+    this.steer.fill(0);
+    this.time_until_next_shoot -= dt;
+    this.dir = this.dir.rotatedRadians(dt * -CONFIG.delayed_rot_speed * 2);
+    if (this.time_until_next_shoot <= 0) {
+      this.time_until_next_shoot = CONFIG.turret_delay * 0.1;
+      bullets.push(new Bullet(this.pos.clone(), this.dir.mul(CONFIG.bullet_speed)));
+    }
+    this.steer_hoverAndDodge();
+    this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
+    this.vel.mulSelf(1 / (1 + dt * CONFIG.enemy_friction * 3));
+    this.pos.addSelf(this.vel.mul(dt));
+  }
+};
 var EightTurretEnemy = class extends Enemy {
   time_until_next_wave;
   constructor(pos) {
     super(pos);
-    this.time_until_next_wave = CONFIG.turret_delay;
+    this.time_until_next_wave = CONFIG.turret_delay * Math.random();
   }
   update(dt) {
+    this.steer.fill(0);
     this.time_until_next_wave -= dt;
     if (this.time_until_next_wave <= 0) {
-      this.time_until_next_wave += CONFIG.turret_delay;
+      this.time_until_next_wave = CONFIG.turret_delay;
       for (let k = 0; k < 8; k++) {
         bullets.push(new Bullet(this.pos.clone(), import_vector2.default.fromRadians(Math.PI * 2 * k / 8).mulSelf(CONFIG.bullet_speed)));
       }
     }
+    this.steer_hoverAndDodge();
     this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
     this.vel.mulSelf(1 / (1 + dt * 3 * CONFIG.enemy_friction));
     this.pos.addSelf(this.vel.mul(dt));
@@ -10909,10 +10998,12 @@ while (player_pos_history.length < CONFIG.tail_frames) {
 var screen_shake_noise = new import_perlin.default(Math.random());
 var enemies = [];
 var bullets = [];
-enemies.push(new SpiralMoveEnemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+enemies.push(new Enemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 enemies.push(new SpiralMoveEnemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 enemies.push(new EightTurretEnemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-enemies.push(new EightTurretEnemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+enemies.push(new DelayedEnemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+enemies.push(new SpiralTurretEnemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+enemies.push(new SpiralTrailEnemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 function rayEnemiesCollision(pos, dir, ray_dist, ray_radius, exclude) {
   let best_dist = Infinity;
   let best_enemy = -1;
@@ -11095,6 +11186,19 @@ function clamp(value, a, b) {
   if (value > b)
     return b;
   return value;
+}
+function mod(n, m) {
+  return (n % m + m) % m;
+}
+function radiansBetween(a, b) {
+  let radians = b.getRadians() - a.getRadians();
+  let eps = 0.01;
+  return mod(radians + Math.PI + eps, Math.PI * 2) - Math.PI + eps;
+}
+function rotateTowards(cur_val, target_val, max_radians) {
+  let radians = radiansBetween(cur_val, target_val);
+  radians = clamp(radians, -max_radians, max_radians);
+  return cur_val.rotatedRadians(radians);
 }
 function argmax(vals) {
   if (vals.length === 0) {

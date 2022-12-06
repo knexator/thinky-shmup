@@ -45,7 +45,8 @@ const CONFIG = {
     debug_steer: .1,
     bullet_speed: 200,
     bullet_radius: 30,
-    turret_delay: 3
+    turret_delay: 3,
+    delayed_rot_speed: 1,
 };
 let gui = new dat.GUI({});
 gui.remember(CONFIG);
@@ -152,15 +153,41 @@ class Bullet {
     }
 }
 
+class StaticBullet extends Bullet {
+    public sprite: Sprite
+    constructor(
+        public pos: Vector2,
+        public remaining_life: number,
+    ) {
+        super(pos, Vector2.zero);
+        this.sprite = new Shaku.gfx!.Sprite(bullet_texture);
+        this.sprite.size.mulSelf(CONFIG.bullet_radius / 50);
+        this.sprite.position = pos;
+    }
+
+    update(dt: number) {
+        this.remaining_life -= dt;
+        if (this.remaining_life <= 0) {
+            bullets = bullets.filter(x => x !== this);
+        }
+    }
+
+    draw() {
+        Shaku.gfx.drawSprite(this.sprite);
+    }
+}
+
 class Enemy {
     public sprite: Sprite
     public vel: Vector2
+    public dir: Vector2
     public steer: number[]
     constructor(
         public pos: Vector2,
     ) {
         this.sprite = new Shaku.gfx!.Sprite(enemy_texture);
         this.sprite.size.mulSelf(CONFIG.enemy_radius / 50);
+        this.dir = Vector2.right;
         this.vel = Vector2.zero;
         this.steer = Array(CONFIG.steer_resolution).fill(0);
 
@@ -225,6 +252,9 @@ class Enemy {
         this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
         this.vel.mulSelf(1 / (1 + (dt * CONFIG.enemy_friction)));
         this.pos.addSelf(this.vel.mul(dt));
+        if (this.vel.x !== 0 || this.vel.y !== 0) {
+            this.dir.copy(this.vel).normalizeSelf();
+        }
     }
 
     update(dt: number) {
@@ -237,13 +267,49 @@ class Enemy {
     }
 
     draw() {
-        this.sprite.rotation = this.vel.getRadians();
+        this.sprite.rotation = this.dir.getRadians();
         Shaku.gfx.drawSprite(this.sprite);
-        for (let k = 0; k < CONFIG.steer_resolution; k++) {
-            Shaku.gfx.drawLine(this.pos, this.pos.add(
-                Vector2.fromRadians(Math.PI * 2 * k / CONFIG.steer_resolution).mulSelf(CONFIG.debug_steer * Math.abs(this.steer[k]))
-            ), this.steer[k] >= 0 ? Color.green : Color.red);
+        // for (let k = 0; k < CONFIG.steer_resolution; k++) {
+        //     Shaku.gfx.drawLine(this.pos, this.pos.add(
+        //         Vector2.fromRadians(Math.PI * 2 * k / CONFIG.steer_resolution).mulSelf(CONFIG.debug_steer * Math.abs(this.steer[k]))
+        //     ), this.steer[k] >= 0 ? Color.green : Color.red);
+        // }
+    }
+}
+
+class DelayedEnemy extends Enemy {
+    cur_goal: Vector2 | null;
+    // cooling_time: number;
+    constructor(pos: Vector2) {
+        super(pos);
+        this.cur_goal = null;
+    }
+
+    update(dt: number): void {
+        this.steer.fill(0);
+
+        if (this.cur_goal === null) {
+            // rotate in place until facing player
+            let delta = player_pos.sub(this.pos);
+            this.dir = rotateTowards(this.dir, delta, CONFIG.delayed_rot_speed * dt);
+            if (Math.abs(radiansBetween(this.dir, delta.normalized())) <= .0001) {
+                this.cur_goal = player_pos.clone();
+                // this.vel = this.dir.mul(CONFIG.enemy_speed * 4)
+            }
+        } else {
+            // move towards
+            // this.pos.addSelf(this.vel.mul(dt));
+            this.steer_chaseDir(this.dir, CONFIG.enemy_speed * 30);
+            if (Vector2.dot(this.dir, this.cur_goal.sub(this.pos)) <= 0) {
+                this.cur_goal = null;
+            }
         }
+
+        this.steer_hoverAndDodge();
+
+        this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
+        this.vel.mulSelf(1 / (1 + (dt * CONFIG.enemy_friction * 3)));
+        this.pos.addSelf(this.vel.mul(dt));
     }
 }
 
@@ -261,28 +327,100 @@ class SpiralMoveEnemy extends Enemy {
     }
 }
 
+class SpiralTrailEnemy extends Enemy {
+    time_until_next_bullet: number;
+    constructor(pos: Vector2) {
+        super(pos);
+        this.time_until_next_bullet = Math.random() * CONFIG.turret_delay * .1;
+    }
+
+    update(dt: number): void {
+        this.steer.fill(0);
+        let delta = player_pos.sub(this.pos);
+        let perp = delta.rotatedDegrees(90).mulSelf(.5);
+        this.steer_chaseDir(Vector2.lerp(delta, perp, .7).normalizeSelf(), CONFIG.enemy_acc * 2);
+
+        this.time_until_next_bullet -= dt;
+        if (this.time_until_next_bullet <= 0) {
+            this.time_until_next_bullet = CONFIG.turret_delay * .1;
+            bullets.push(new StaticBullet(this.pos.clone(), 4));
+        }
+
+        this.steer_hoverAndDodge();
+        this.endUpdate(dt);
+    }
+}
+
+class SpiralTurretEnemy extends Enemy {
+    public time_until_next_shoot: number;
+    constructor(pos: Vector2) {
+        super(pos);
+        this.time_until_next_shoot = CONFIG.turret_delay * Math.random() * .1;
+    }
+
+    update(dt: number): void {
+        this.steer.fill(0);
+
+        this.time_until_next_shoot -= dt;
+        this.dir = this.dir.rotatedRadians(dt * -CONFIG.delayed_rot_speed * 2);
+        if (this.time_until_next_shoot <= 0) {
+            this.time_until_next_shoot = CONFIG.turret_delay * .1;
+            bullets.push(new Bullet(this.pos.clone(), this.dir.mul(CONFIG.bullet_speed)));
+        }
+
+        this.steer_hoverAndDodge();
+        this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
+        this.vel.mulSelf(1 / (1 + (dt * CONFIG.enemy_friction * 3)));
+        this.pos.addSelf(this.vel.mul(dt));
+    }
+}
+
 class EightTurretEnemy extends Enemy {
     public time_until_next_wave: number;
     constructor(pos: Vector2) {
         super(pos);
-        this.time_until_next_wave = CONFIG.turret_delay;
+        this.time_until_next_wave = CONFIG.turret_delay * Math.random();
     }
 
     update(dt: number): void {
+        this.steer.fill(0);
+
         this.time_until_next_wave -= dt;
         if (this.time_until_next_wave <= 0) {
-            this.time_until_next_wave += CONFIG.turret_delay;
+            this.time_until_next_wave = CONFIG.turret_delay;
             for (let k = 0; k < 8; k++) {
                 bullets.push(new Bullet(this.pos.clone(), Vector2.fromRadians(Math.PI * 2 * k / 8).mulSelf(CONFIG.bullet_speed)));
             }
         }
 
+        this.steer_hoverAndDodge();
         // this.endUpdate(dt);
         this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
         this.vel.mulSelf(1 / (1 + (dt * 3 * CONFIG.enemy_friction)));
         this.pos.addSelf(this.vel.mul(dt));
     }
 }
+
+// class LaserTurretEnemy extends Enemy {
+//     public time_until_next_shot: number;
+//     constructor(pos: Vector2) {
+//         super(pos);
+//         this.time_until_next_shot = CONFIG.turret_delay * Math.random();
+//     }
+
+//     update(dt: number): void {
+//         this.time_until_next_shot -= dt;
+//         if (this.time_until_next_shot <= 0) {
+//             this.time_until_next_shot += CONFIG.turret_delay;
+
+//         }
+
+//         // this.endUpdate(dt);
+//         this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
+//         this.vel.mulSelf(1 / (1 + (dt * 3 * CONFIG.enemy_friction)));
+//         this.pos.addSelf(this.vel.mul(dt));
+//     }
+// }
 
 // Data for the player shoot moving the enemy
 let time_since_dash = Infinity;
@@ -315,12 +453,18 @@ let screen_shake_noise = new Perlin(Math.random());
 let enemies: Enemy[] = [];
 let bullets: Bullet[] = [];
 // for (let k = 0; k < 4; k++) {
-//     enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+// enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 // }
+enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+// enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 enemies.push(new SpiralMoveEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-enemies.push(new SpiralMoveEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+// enemies.push(new SpiralMoveEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 enemies.push(new EightTurretEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-enemies.push(new EightTurretEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+// enemies.push(new EightTurretEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+enemies.push(new DelayedEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+// enemies.push(new DelayedEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+enemies.push(new SpiralTurretEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+enemies.push(new SpiralTrailEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 
 interface CollisionInfo {
     hit_dist: number,
@@ -615,11 +759,16 @@ function moveTowardsV(cur_val: Vector2, target_val: Vector2, max_dist: number): 
     return cur_val.add(delta);
 }
 
-function rotateTowards(cur_val: Vector2, target_val: Vector2, max_radians: number): Vector2 {
-    let radians = target_val.getRadians() - cur_val.getRadians();
+/** How much to rotate a so it its be */
+function radiansBetween(a: Vector2, b: Vector2) {
+    let radians = b.getRadians() - a.getRadians();
     // get them in the interval [-PI+eps, PI+eps] to bias the result
     let eps = .01;
-    radians = mod(radians + Math.PI + eps, Math.PI * 2) - Math.PI + eps;
+    return mod(radians + Math.PI + eps, Math.PI * 2) - Math.PI + eps;
+}
+
+function rotateTowards(cur_val: Vector2, target_val: Vector2, max_radians: number): Vector2 {
+    let radians = radiansBetween(cur_val, target_val);
     radians = clamp(radians, -max_radians, max_radians);
     return cur_val.rotatedRadians(radians);
 }
