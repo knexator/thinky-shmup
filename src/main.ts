@@ -7,6 +7,7 @@ import Vector2 from "shaku/lib/utils/vector2";
 import Sprite from "shaku/lib/gfx/sprite";
 import Circle from "shaku/lib/utils/circle";
 import Perlin from "shaku/lib/utils/perlin";
+import Rectangle from "shaku/lib/utils/rectangle";
 
 import Deque from "double-ended-queue";
 import { ScreenTextureEffect } from "./screen_texture_effect";
@@ -102,6 +103,13 @@ Shaku.endFrame();
 
 let paused = false;
 
+enum Ship {
+    C, M, Y,
+    CM, MY, YC,
+    CC, MM, YY,
+    P1, P2, P3,
+}
+
 const COLOR_BACKGROUND = new Color(.2, .195, .205);
 
 // TODO: INIT STUFF AND LOAD ASSETS HERE
@@ -116,6 +124,9 @@ player_sprite.size.mulSelf(CONFIG.player_radius / 50);
 // player_sprite.color = Color.black;
 let player_tail_sprite = new Shaku.gfx!.Sprite(player_texture);
 player_tail_sprite.color = new Color(0, 0, 0, .5);
+
+let enemy_atlas_texture = await Shaku.assets.loadTexture("imgs/enemies.png", { generateMipMaps: true });
+enemy_atlas_texture.filter = TextureFilterModes.Linear;
 
 let enemy_texture = await Shaku.assets.loadTexture("imgs/enemy.png", { generateMipMaps: true });
 enemy_texture.filter = TextureFilterModes.Linear;
@@ -141,6 +152,10 @@ background_texture.wrapMode = TextureWrapModes.Repeat;
 const FULL_SCREEN_SPRITE = new Sprite(Shaku.gfx.whiteTexture);
 FULL_SCREEN_SPRITE.origin = Vector2.zero;
 FULL_SCREEN_SPRITE.size = Shaku.gfx.getCanvasSize();
+
+let board_h = FULL_SCREEN_SPRITE.size.y * .8;
+let board_w = FULL_SCREEN_SPRITE.size.y * (4 / 3 - .2);
+let board_area = new Rectangle(FULL_SCREEN_SPRITE.size.x / 2 - board_w / 2, FULL_SCREEN_SPRITE.size.y / 2 - board_h / 2, board_w, board_h);
 
 let grunge_r_texture = await Shaku.assets.loadTexture("imgs/grunge_r.png", { generateMipMaps: true });
 grunge_r_texture.filter = TextureFilterModes.Linear;
@@ -228,21 +243,79 @@ class StaticBullet extends Bullet {
     }
 }
 
+const rules: [Ship, Ship][][] = [
+    [[Ship.C, Ship.M], [Ship.CM, Ship.P1]],
+    [[Ship.M, Ship.Y], [Ship.MY, Ship.P1]],
+    [[Ship.Y, Ship.C], [Ship.YC, Ship.P1]],
+
+    [[Ship.C, Ship.C], [Ship.CC, Ship.P1]],
+    [[Ship.Y, Ship.Y], [Ship.YY, Ship.P1]],
+    [[Ship.M, Ship.M], [Ship.MM, Ship.P1]],
+
+    [[Ship.C, Ship.CC], [Ship.MY, Ship.P2]],
+    [[Ship.Y, Ship.YY], [Ship.CM, Ship.P2]],
+    [[Ship.M, Ship.MM], [Ship.YC, Ship.P2]],
+
+    [[Ship.C, Ship.MY], [Ship.CC, Ship.P2]],
+    [[Ship.Y, Ship.CM], [Ship.YY, Ship.P2]],
+    [[Ship.M, Ship.YC], [Ship.MM, Ship.P2]],
+
+    [[Ship.P1, Ship.P1], [Ship.P2, Ship.P2]],
+    [[Ship.P1, Ship.P2], [Ship.P3, Ship.P3]],
+];
+
+function combine(a: Ship, b: Ship): [Ship, Ship] | null {
+    let input: [Ship, Ship] = [a, b];
+    for (let k = 0; k < rules.length; k++) {
+        let cur_rule = rules[k];
+        if (sameShips(input, cur_rule[0])) {
+            return cur_rule[1];
+        }
+        if (sameShips(input, cur_rule[1])) {
+            return cur_rule[0];
+        }
+    }
+    return null;
+}
+
+function sameShips(a: [Ship, Ship], b: [Ship, Ship]) {
+    return (a[0] === b[0] && a[1] === b[1]) || (a[0] === b[1] && a[1] === b[0]);
+}
+
 class Enemy {
     public sprite: Sprite
     public vel: Vector2
     public dir: Vector2
     public steer: number[]
+    public ship_type: Ship
     constructor(
         public pos: Vector2,
     ) {
-        this.sprite = new Shaku.gfx!.Sprite(enemy_texture);
+        this.sprite = new Shaku.gfx!.Sprite(enemy_atlas_texture);
         this.sprite.size.mulSelf(CONFIG.enemy_radius / 50);
         this.dir = Vector2.right;
         this.vel = Vector2.zero;
         this.steer = Array(CONFIG.steer_resolution).fill(0);
 
         this.sprite.position = pos;
+        this.ship_type = Ship.C;
+        this.setType(this.ship_type);
+    }
+
+    setType(x: Ship) {
+        this.ship_type = x;
+        let n = [
+            Ship.M, Ship.Y, Ship.C,
+            Ship.MM, Ship.YY, Ship.CC,
+            Ship.YC, Ship.CM, Ship.MY,
+            Ship.P1, Ship.P2, Ship.P3,
+        ].indexOf(x);
+        this.sprite.setSourceFromSpritesheet(
+            new Vector2(n % 3, Math.floor(n / 3)),
+            new Vector2(3, 4),
+            0, true
+        );
+        this.sprite.size.mulSelf(CONFIG.enemy_radius / 50);
     }
 
     steer_chaseDir(target_dir: Vector2, acc: number) {
@@ -511,9 +584,14 @@ let bullets: Bullet[] = [];
 // for (let k = 0; k < 4; k++) {
 // enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 // }
-enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random() * .2 + .4, Math.random())));
-enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random() * .2 + .4, Math.random())));
-enemies[0].sprite.color = Color.red;
+let initial_types = [Ship.C, Ship.M, Ship.Y, Ship.C, Ship.M, Ship.Y];
+for (let k = 0; k < initial_types.length; k++) {
+    let cur = new Enemy(new Vector2(Math.random(), Math.random()).mulSelf(board_area.getSize()).addSelf(board_area.getTopLeft()));
+    cur.setType(initial_types[k]);
+    enemies.push(cur);
+}
+// enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random() * .2 + .4, Math.random())));
+// enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random() * .2 + .4, Math.random())));
 // enemies.push(new SpiralMoveEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 // // enemies.push(new SpiralMoveEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 // enemies.push(new EightTurretEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
@@ -593,6 +671,8 @@ function step() {
     // @ts-ignore
     Shaku.gfx.useEffect(null);
 
+    // Shaku.gfx.fillRect(board_area, Color.blue);
+
     if (Shaku.input.pressed("escape")) {
         paused = !paused;
     }
@@ -622,20 +702,20 @@ function step() {
             dt *= .2;
             if (cur_hit!.time_until_end / CONFIG.dash_hit_duration < .5) {
                 cur_hit.starting = false;
-                if (cur_hit.merge) {
+                let new_types = combine(cur_hit.hitter.ship_type, cur_hit.hitted.ship_type);
+                if (new_types !== null) {
+                    cur_hit.merge = true;
                     enemies = enemies.filter(x => x !== cur_hit!.hitted && x !== cur_hit!.hitter);
                     let new_enemy_1 = new Enemy(cur_hit!.hitted.pos.clone());
-                    // new_enemy_1.vel.copy(cur_hit.hitted_new_vel);
-                    new_enemy_1.sprite.color = Color.cyan;
+                    new_enemy_1.setType(new_types[0]);
                     enemies.push(new_enemy_1);
                     let new_enemy_2 = new Enemy(cur_hit!.hitter.pos.clone());
-                    new_enemy_2.sprite.color = Color.yellow;
+                    new_enemy_2.setType(new_types[1]);
                     enemies.push(new_enemy_2);
                     cur_hit.hitted = new_enemy_1;
                     cur_hit.hitter = new_enemy_2;
                 } else {
-                    // cur_hit.hitted.vel.addSelf(cur_hit.hitted_new_vel);
-                    // cur_hit.hitter.vel.addSelf(cur_hit.hitter_new_vel);
+                    cur_hit.merge = false;
                 }
             }
         }

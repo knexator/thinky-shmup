@@ -906,7 +906,7 @@ var require_rectangle = __commonJS({
     var Line2 = require_line();
     var MathHelper = require_math_helper();
     var Vector22 = require_vector2();
-    var Rectangle = class {
+    var Rectangle2 = class {
       constructor(x, y, width, height) {
         this.x = x || 0;
         this.y = y || 0;
@@ -949,7 +949,7 @@ var require_rectangle = __commonJS({
         return this.y + this.height;
       }
       clone() {
-        return new Rectangle(this.x, this.y, this.width, this.height);
+        return new Rectangle2(this.x, this.y, this.width, this.height);
       }
       getTopLeft() {
         return new Vector22(this.x, this.y);
@@ -1043,20 +1043,20 @@ var require_rectangle = __commonJS({
           max_x = Math.max(max_x, points[i].x);
           max_y = Math.max(max_y, points[i].y);
         }
-        return new Rectangle(min_x, min_y, max_x - min_x, max_y - min_y);
+        return new Rectangle2(min_x, min_y, max_x - min_x, max_y - min_y);
       }
       resize(amount) {
         if (typeof amount === "number") {
           amount = new Vector22(amount, amount);
         }
-        return new Rectangle(this.x - amount.x / 2, this.y - amount.y / 2, this.width + amount.x, this.height + amount.y);
+        return new Rectangle2(this.x - amount.x / 2, this.y - amount.y / 2, this.width + amount.x, this.height + amount.y);
       }
       equals(other) {
         return this === other || other && other.constructor === this.constructor && this.x == other.x && this.y == other.y && this.width == other.width && this.height == other.height;
       }
       static lerp(p1, p2, a) {
         let lerpScalar = MathHelper.lerp;
-        return new Rectangle(
+        return new Rectangle2(
           lerpScalar(p1.x, p2.x, a),
           lerpScalar(p1.y, p2.y, a),
           lerpScalar(p1.width, p2.width, a),
@@ -1064,7 +1064,7 @@ var require_rectangle = __commonJS({
         );
       }
       static fromDict(data) {
-        return new Rectangle(data.x || 0, data.y || 0, data.width || 0, data.height || 0);
+        return new Rectangle2(data.x || 0, data.y || 0, data.width || 0, data.height || 0);
       }
       toDict(minimized) {
         if (minimized) {
@@ -1117,7 +1117,7 @@ var require_rectangle = __commonJS({
       var dy = y - yy;
       return Math.sqrt(dx * dx + dy * dy);
     }
-    module.exports = Rectangle;
+    module.exports = Rectangle2;
   }
 });
 
@@ -3413,7 +3413,7 @@ var require_effect = __commonJS({
     "use strict";
     var TextureAsset = require_texture_asset();
     var Color3 = require_color();
-    var Rectangle = require_rectangle();
+    var Rectangle2 = require_rectangle();
     var { TextureFilterMode, TextureFilterModes: TextureFilterModes2 } = require_texture_filter_modes();
     var { TextureWrapMode, TextureWrapModes: TextureWrapModes2 } = require_texture_wrap_modes();
     var Matrix = require_matrix();
@@ -3604,7 +3604,7 @@ var require_effect = __commonJS({
         }
         this._cachedValues.sourceRect = sourceRect ? sourceRect.clone() : null;
         if (!sourceRect) {
-          sourceRect = new Rectangle(0, 0, texture.width, texture.height);
+          sourceRect = new Rectangle2(0, 0, texture.width, texture.height);
         }
         let uvOffset = this._uniformBinds[Effect3.UniformBinds.UvOffset];
         if (uvOffset) {
@@ -4014,7 +4014,7 @@ var require_mesh_generator = __commonJS({
 var require_camera = __commonJS({
   "../Shaku/lib/gfx/camera.js"(exports, module) {
     "use strict";
-    var Rectangle = require_rectangle();
+    var Rectangle2 = require_rectangle();
     var Vector22 = require_vector2();
     var Matrix = require_matrix();
     var Camera = class {
@@ -4037,7 +4037,7 @@ var require_camera = __commonJS({
       }
       orthographicOffset(offset, ignoreViewportSize, near, far) {
         let renderingSize = ignoreViewportSize || !this.viewport ? this._gfx.getCanvasSize() : this.viewport.getSize();
-        let region = new Rectangle(offset.x, offset.y, renderingSize.x, renderingSize.y);
+        let region = new Rectangle2(offset.x, offset.y, renderingSize.x, renderingSize.y);
         this.orthographic(region, near, far);
       }
       orthographic(region, near, far) {
@@ -4061,7 +4061,7 @@ var require_sprite = __commonJS({
     "use strict";
     var TextureAsset = require_texture_asset();
     var Color3 = require_color();
-    var Rectangle = require_rectangle();
+    var Rectangle2 = require_rectangle();
     var Vector22 = require_vector2();
     var Vector32 = require_vector3();
     var { BlendMode, BlendModes: BlendModes2 } = require_blend_modes();
@@ -4098,7 +4098,7 @@ var require_sprite = __commonJS({
         if (this.sourceRect) {
           this.sourceRect.set(x, y, w, h);
         } else {
-          this.sourceRect = new Rectangle(x, y, w, h);
+          this.sourceRect = new Rectangle2(x, y, w, h);
         }
       }
       clone() {
@@ -4220,7 +4220,7 @@ var require_font_texture_asset = __commonJS({
     "use strict";
     var Asset = require_asset();
     var Vector22 = require_vector2();
-    var Rectangle = require_rectangle();
+    var Rectangle2 = require_rectangle();
     var TextureAsset = require_texture_asset();
     var FontTextureAsset = class extends Asset {
       constructor(url) {
@@ -4302,7 +4302,7 @@ var require_font_texture_asset = __commonJS({
               x = 0;
             }
             const offsetAdjustment = params.sourceRectOffsetAdjustment || { x: 0, y: 0 };
-            let sourceRect = new Rectangle(x + offsetAdjustment.x, y + offsetAdjustment.y, currCharWidth, fontHeight);
+            let sourceRect = new Rectangle2(x + offsetAdjustment.x, y + offsetAdjustment.y, currCharWidth, fontHeight);
             this._sourceRects[currChar] = sourceRect;
             ctx.fillText(currChar, x, y + fontHeight);
             x += Math.round(currCharWidth + margin.x);
@@ -4467,7 +4467,7 @@ var require_msdf_font_texture_asset = __commonJS({
   "../Shaku/lib/assets/msdf_font_texture_asset.js"(exports, module) {
     "use strict";
     var Vector22 = require_vector2();
-    var Rectangle = require_rectangle();
+    var Rectangle2 = require_rectangle();
     var TextureAsset = require_texture_asset();
     var FontTextureAsset = require_font_texture_asset();
     var JsonAsset = require_json_asset();
@@ -4503,7 +4503,7 @@ var require_msdf_font_texture_asset = __commonJS({
           this._kernings = {};
           for (const charData of atlas_metadata.chars) {
             let currChar = charData.char;
-            let sourceRect = new Rectangle(charData.x, charData.y, charData.width, charData.height);
+            let sourceRect = new Rectangle2(charData.x, charData.y, charData.width, charData.height);
             this._sourceRects[currChar] = sourceRect;
             this._positionOffsets[currChar] = new Vector22(
               charData.xoffset,
@@ -4551,7 +4551,7 @@ var require_text_alignments = __commonJS({
 var require_sprite_batch = __commonJS({
   "../Shaku/lib/gfx/sprite_batch.js"(exports, module) {
     "use strict";
-    var { Rectangle, Color: Color3 } = require_utils();
+    var { Rectangle: Rectangle2, Color: Color3 } = require_utils();
     var Vector22 = require_vector2();
     var Vertex = require_vertex();
     var { BlendModes: BlendModes2 } = require_blend_modes();
@@ -4722,7 +4722,7 @@ var require_sprite_batch = __commonJS({
           let z2 = sprite.position.z || 0;
           let zDepth = sprite.size.z || 0;
           if (cullOutOfScreen) {
-            let destRect = Rectangle.fromPoints([topLeft, topRight, bottomLeft, bottomRight]);
+            let destRect = Rectangle2.fromPoints([topLeft, topRight, bottomLeft, bottomRight]);
             if (!region.collideRect(destRect)) {
               continue;
             }
@@ -4884,7 +4884,7 @@ var require_gfx = __commonJS({
     var IManager = require_manager();
     var Color3 = require_color();
     var { BlendMode, BlendModes: BlendModes2 } = require_blend_modes();
-    var Rectangle = require_rectangle();
+    var Rectangle2 = require_rectangle();
     var { Effect: Effect3, BasicEffect: BasicEffect2, MsdfFontEffect } = require_effects();
     var TextureAsset = require_texture_asset();
     var { TextureFilterMode, TextureFilterModes: TextureFilterModes2 } = require_texture_filter_modes();
@@ -5089,7 +5089,7 @@ var require_gfx = __commonJS({
       resetCamera() {
         this._camera = this.createCamera();
         let size = this.getRenderingSize();
-        this._camera.orthographic(new Rectangle(0, 0, size.x, size.y));
+        this._camera.orthographic(new Rectangle2(0, 0, size.x, size.y));
         this.applyCamera(this._camera);
       }
       applyCamera(camera) {
@@ -5110,7 +5110,7 @@ var require_gfx = __commonJS({
           }
           return ret;
         }
-        return new Rectangle(0, 0, (this._renderTarget || this._canvas).width, (this._renderTarget || this._canvas).height);
+        return new Rectangle2(0, 0, (this._renderTarget || this._canvas).width, (this._renderTarget || this._canvas).height);
       }
       getRenderingSize() {
         let region = this.getRenderingRegion();
@@ -5269,7 +5269,7 @@ var require_gfx = __commonJS({
       }
       cover(texture, destRect, sourceRect, color, blendMode) {
         if (destRect instanceof Vector22 || destRect instanceof Vector32) {
-          destRect = new Rectangle(0, 0, destRect.x, destRect.y);
+          destRect = new Rectangle2(0, 0, destRect.x, destRect.y);
         }
         return this.draw(texture, destRect.getCenter(), destRect.getSize(), sourceRect, color, blendMode);
       }
@@ -5481,7 +5481,7 @@ var require_gfx = __commonJS({
           return region.collideCircle(shape);
         } else if (shape instanceof Vector22) {
           return region.containsVector(shape);
-        } else if (shape instanceof Rectangle) {
+        } else if (shape instanceof Rectangle2) {
           return region.collideRect(shape);
         } else if (shape instanceof Line) {
           return region.collideLine(shape);
@@ -6875,7 +6875,7 @@ var require_shape = __commonJS({
   "../Shaku/lib/collision/shapes/shape.js"(exports, module) {
     "use strict";
     var Color3 = require_color();
-    var Rectangle = require_rectangle();
+    var Rectangle2 = require_rectangle();
     var Vector22 = require_vector2();
     var CollisionWorld = require_collision_world();
     var CollisionShape = class {
@@ -7034,7 +7034,7 @@ var require_point = __commonJS({
     var CollisionShape = require_shape();
     var gfx = require_gfx2();
     var Vector22 = require_vector2();
-    var Rectangle = require_rectangle();
+    var Rectangle2 = require_rectangle();
     var Circle2 = require_circle();
     var PointShape = class extends CollisionShape {
       constructor(position) {
@@ -7046,7 +7046,7 @@ var require_point = __commonJS({
       }
       setPosition(position) {
         this._position = position.clone();
-        this._boundingBox = new Rectangle(position.x, position.y, 1, 1);
+        this._boundingBox = new Rectangle2(position.x, position.y, 1, 1);
         this._shapeChanged();
       }
       getPosition() {
@@ -7080,7 +7080,7 @@ var require_circle2 = __commonJS({
     var CollisionShape = require_shape();
     var gfx = require_gfx2();
     var Circle2 = require_circle();
-    var Rectangle = require_rectangle();
+    var Rectangle2 = require_rectangle();
     var CircleShape = class extends CollisionShape {
       constructor(circle) {
         super();
@@ -7092,7 +7092,7 @@ var require_circle2 = __commonJS({
       setShape(circle) {
         this._circle = circle;
         this._position = circle.center;
-        this._boundingBox = new Rectangle(circle.center.x - circle.radius, circle.center.y - circle.radius, circle.radius * 2, circle.radius * 2);
+        this._boundingBox = new Rectangle2(circle.center.x - circle.radius, circle.center.y - circle.radius, circle.radius * 2, circle.radius * 2);
         this._shapeChanged();
       }
       _getRadius() {
@@ -7128,7 +7128,7 @@ var require_collision_world = __commonJS({
     var CollisionTestResult = require_result();
     var CollisionShape = require_shape();
     var gfx = require_gfx2();
-    var Rectangle = require_rectangle();
+    var Rectangle2 = require_rectangle();
     var CollisionResolver = require_resolver();
     var PointShape = require_point();
     var CircleShape = require_circle2();
@@ -7380,7 +7380,7 @@ var require_collision_world = __commonJS({
           for (let j = miny; j <= maxy; ++j) {
             let cell = this._grid[i + "," + j];
             let color = cell && cell.size ? gridHighlitColor : gridColor;
-            let cellRect = new Rectangle(i * this._gridCellSize.x, j * this._gridCellSize.y, this._gridCellSize.x - 1, this._gridCellSize.y - 1);
+            let cellRect = new Rectangle2(i * this._gridCellSize.x, j * this._gridCellSize.y, this._gridCellSize.x - 1, this._gridCellSize.y - 1);
             gfx.outlineRect(cellRect, color, gfx.BlendModes.AlphaBlend, 0);
             if (cell) {
               for (let shape of cell) {
@@ -7411,7 +7411,7 @@ var require_collision_world = __commonJS({
 var require_rectangle2 = __commonJS({
   "../Shaku/lib/collision/shapes/rectangle.js"(exports, module) {
     "use strict";
-    var Rectangle = require_rectangle();
+    var Rectangle2 = require_rectangle();
     var CollisionShape = require_shape();
     var gfx = require_gfx2();
     var RectangleShape = class extends CollisionShape {
@@ -7558,7 +7558,7 @@ var require_lines = __commonJS({
     var CollisionShape = require_shape();
     var gfx = require_gfx2();
     var Line2 = require_line();
-    var Rectangle = require_rectangle();
+    var Rectangle2 = require_rectangle();
     var Circle2 = require_circle();
     var LinesShape = class extends CollisionShape {
       constructor(lines) {
@@ -7581,7 +7581,7 @@ var require_lines = __commonJS({
           points.push(this._lines[i].from);
           points.push(this._lines[i].to);
         }
-        this._boundingBox = Rectangle.fromPoints(points);
+        this._boundingBox = Rectangle2.fromPoints(points);
         this._circle = new Circle2(this._boundingBox.getCenter(), Math.max(this._boundingBox.width, this._boundingBox.height));
         this._shapeChanged();
       }
@@ -7617,7 +7617,7 @@ var require_tilemap = __commonJS({
   "../Shaku/lib/collision/shapes/tilemap.js"(exports, module) {
     "use strict";
     var CollisionShape = require_shape();
-    var Rectangle = require_rectangle();
+    var Rectangle2 = require_rectangle();
     var Vector22 = require_vector2();
     var gfx = require_gfx2();
     var RectangleShape = require_rectangle2();
@@ -7626,7 +7626,7 @@ var require_tilemap = __commonJS({
         super();
         borderThickness = borderThickness || 0;
         this._offset = offset.clone();
-        this._intBoundingRect = new Rectangle(offset.x, offset.y, gridSize.x * tileSize.x, gridSize.y * tileSize.y);
+        this._intBoundingRect = new Rectangle2(offset.x, offset.y, gridSize.x * tileSize.x, gridSize.y * tileSize.y);
         this._boundingRect = this._intBoundingRect.resize(borderThickness * 2);
         this._center = this._boundingRect.getCenter();
         this._radius = this._boundingRect.getBoundingCircle().radius;
@@ -7648,7 +7648,7 @@ var require_tilemap = __commonJS({
         let key = this._indexToKey(index);
         if (haveCollision) {
           let rect = this._tiles[key] || new RectangleShape(
-            new Rectangle(
+            new Rectangle2(
               this._offset.x + index.x * this._tileSize.x,
               this._offset.y + index.y * this._tileSize.y,
               this._tileSize.x,
@@ -10665,6 +10665,7 @@ var import_vector2 = __toESM(require_vector2());
 var import_sprite = __toESM(require_sprite());
 var import_circle = __toESM(require_circle());
 var import_perlin = __toESM(require_perlin());
+var import_rectangle = __toESM(require_rectangle());
 var import_double_ended_queue = __toESM(require_deque());
 
 // src/screen_texture_effect.ts
@@ -10970,6 +10971,8 @@ var player_sprite = new import_shaku.default.gfx.Sprite(player_texture);
 player_sprite.size.mulSelf(CONFIG.player_radius / 50);
 var player_tail_sprite = new import_shaku.default.gfx.Sprite(player_texture);
 player_tail_sprite.color = new import_color.default(0, 0, 0, 0.5);
+var enemy_atlas_texture = await import_shaku.default.assets.loadTexture("imgs/enemies.png", { generateMipMaps: true });
+enemy_atlas_texture.filter = import_gfx2.TextureFilterModes.Linear;
 var enemy_texture = await import_shaku.default.assets.loadTexture("imgs/enemy.png", { generateMipMaps: true });
 enemy_texture.filter = import_gfx2.TextureFilterModes.Linear;
 var enemy_hit_trail_sprite = new import_shaku.default.gfx.Sprite(enemy_texture);
@@ -10987,6 +10990,9 @@ background_texture.wrapMode = import_gfx2.TextureWrapModes.Repeat;
 var FULL_SCREEN_SPRITE = new import_sprite.default(import_shaku.default.gfx.whiteTexture);
 FULL_SCREEN_SPRITE.origin = import_vector2.default.zero;
 FULL_SCREEN_SPRITE.size = import_shaku.default.gfx.getCanvasSize();
+var board_h = FULL_SCREEN_SPRITE.size.y * 0.8;
+var board_w = FULL_SCREEN_SPRITE.size.y * (4 / 3 - 0.2);
+var board_area = new import_rectangle.default(FULL_SCREEN_SPRITE.size.x / 2 - board_w / 2, FULL_SCREEN_SPRITE.size.y / 2 - board_h / 2, board_w, board_h);
 var grunge_r_texture = await import_shaku.default.assets.loadTexture("imgs/grunge_r.png", { generateMipMaps: true });
 grunge_r_texture.filter = import_gfx2.TextureFilterModes.Linear;
 grunge_r_texture.wrapMode = import_gfx2.TextureWrapModes.Repeat;
@@ -11016,20 +11022,79 @@ function bestDir(steer) {
   let best_index = argmax(steer);
   return import_vector2.default.fromRadians(Math.PI * 2 * best_index / CONFIG.steer_resolution).mulSelf(steer[best_index]);
 }
+var rules = [
+  [[0 /* C */, 1 /* M */], [3 /* CM */, 9 /* P1 */]],
+  [[1 /* M */, 2 /* Y */], [4 /* MY */, 9 /* P1 */]],
+  [[2 /* Y */, 0 /* C */], [5 /* YC */, 9 /* P1 */]],
+  [[0 /* C */, 0 /* C */], [6 /* CC */, 9 /* P1 */]],
+  [[2 /* Y */, 2 /* Y */], [8 /* YY */, 9 /* P1 */]],
+  [[1 /* M */, 1 /* M */], [7 /* MM */, 9 /* P1 */]],
+  [[0 /* C */, 6 /* CC */], [4 /* MY */, 10 /* P2 */]],
+  [[2 /* Y */, 8 /* YY */], [3 /* CM */, 10 /* P2 */]],
+  [[1 /* M */, 7 /* MM */], [5 /* YC */, 10 /* P2 */]],
+  [[0 /* C */, 4 /* MY */], [6 /* CC */, 10 /* P2 */]],
+  [[2 /* Y */, 3 /* CM */], [8 /* YY */, 10 /* P2 */]],
+  [[1 /* M */, 5 /* YC */], [7 /* MM */, 10 /* P2 */]],
+  [[9 /* P1 */, 9 /* P1 */], [10 /* P2 */, 10 /* P2 */]],
+  [[9 /* P1 */, 10 /* P2 */], [11 /* P3 */, 11 /* P3 */]]
+];
+function combine(a, b) {
+  let input = [a, b];
+  for (let k = 0; k < rules.length; k++) {
+    let cur_rule = rules[k];
+    if (sameShips(input, cur_rule[0])) {
+      return cur_rule[1];
+    }
+    if (sameShips(input, cur_rule[1])) {
+      return cur_rule[0];
+    }
+  }
+  return null;
+}
+function sameShips(a, b) {
+  return a[0] === b[0] && a[1] === b[1] || a[0] === b[1] && a[1] === b[0];
+}
 var Enemy = class {
   constructor(pos) {
     this.pos = pos;
-    this.sprite = new import_shaku.default.gfx.Sprite(enemy_texture);
+    this.sprite = new import_shaku.default.gfx.Sprite(enemy_atlas_texture);
     this.sprite.size.mulSelf(CONFIG.enemy_radius / 50);
     this.dir = import_vector2.default.right;
     this.vel = import_vector2.default.zero;
     this.steer = Array(CONFIG.steer_resolution).fill(0);
     this.sprite.position = pos;
+    this.ship_type = 0 /* C */;
+    this.setType(this.ship_type);
   }
   sprite;
   vel;
   dir;
   steer;
+  ship_type;
+  setType(x) {
+    this.ship_type = x;
+    let n = [
+      1 /* M */,
+      2 /* Y */,
+      0 /* C */,
+      7 /* MM */,
+      8 /* YY */,
+      6 /* CC */,
+      5 /* YC */,
+      3 /* CM */,
+      4 /* MY */,
+      9 /* P1 */,
+      10 /* P2 */,
+      11 /* P3 */
+    ].indexOf(x);
+    this.sprite.setSourceFromSpritesheet(
+      new import_vector2.default(n % 3, Math.floor(n / 3)),
+      new import_vector2.default(3, 4),
+      0,
+      true
+    );
+    this.sprite.size.mulSelf(CONFIG.enemy_radius / 50);
+  }
   steer_chaseDir(target_dir, acc) {
     addSteer(this.steer, (v) => {
       return (import_vector2.default.dot(v, target_dir) + 1) * 0.5 * acc;
@@ -11111,9 +11176,12 @@ while (player_pos_history.length < CONFIG.tail_frames) {
 var screen_shake_noise = new import_perlin.default(Math.random());
 var enemies = [];
 var bullets = [];
-enemies.push(new Enemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random() * 0.2 + 0.4, Math.random())));
-enemies.push(new Enemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random() * 0.2 + 0.4, Math.random())));
-enemies[0].sprite.color = import_color.default.red;
+var initial_types = [0 /* C */, 1 /* M */, 2 /* Y */, 0 /* C */, 1 /* M */, 2 /* Y */];
+for (let k = 0; k < initial_types.length; k++) {
+  let cur = new Enemy(new import_vector2.default(Math.random(), Math.random()).mulSelf(board_area.getSize()).addSelf(board_area.getTopLeft()));
+  cur.setType(initial_types[k]);
+  enemies.push(cur);
+}
 addEventListener("resize", (event) => {
   import_shaku.default.gfx.maximizeCanvasSize(false, false);
   FULL_SCREEN_SPRITE.size = import_shaku.default.gfx.getCanvasSize();
@@ -11185,17 +11253,20 @@ function step() {
       dt *= 0.2;
       if (cur_hit.time_until_end / CONFIG.dash_hit_duration < 0.5) {
         cur_hit.starting = false;
-        if (cur_hit.merge) {
+        let new_types = combine(cur_hit.hitter.ship_type, cur_hit.hitted.ship_type);
+        if (new_types !== null) {
+          cur_hit.merge = true;
           enemies = enemies.filter((x) => x !== cur_hit.hitted && x !== cur_hit.hitter);
           let new_enemy_1 = new Enemy(cur_hit.hitted.pos.clone());
-          new_enemy_1.sprite.color = import_color.default.cyan;
+          new_enemy_1.setType(new_types[0]);
           enemies.push(new_enemy_1);
           let new_enemy_2 = new Enemy(cur_hit.hitter.pos.clone());
-          new_enemy_2.sprite.color = import_color.default.yellow;
+          new_enemy_2.setType(new_types[1]);
           enemies.push(new_enemy_2);
           cur_hit.hitted = new_enemy_1;
           cur_hit.hitter = new_enemy_2;
         } else {
+          cur_hit.merge = false;
         }
       }
     }
