@@ -127,6 +127,13 @@ enemy_hit_trail_sprite.color = new Color(1, 1, 1, .125);
 let bullet_texture = await Shaku.assets.loadTexture("imgs/bullet.png", { generateMipMaps: true });
 bullet_texture.filter = TextureFilterModes.Linear;
 
+let crash_particle_texture = await Shaku.assets.loadTexture("imgs/crash_particle.png", { generateMipMaps: true });
+crash_particle_texture.filter = TextureFilterModes.Linear;
+
+let merge_particle_texture = await Shaku.assets.loadTexture("imgs/merge_particle.png", { generateMipMaps: true });
+merge_particle_texture.filter = TextureFilterModes.Linear;
+
+
 let background_texture = await Shaku.assets.loadTexture("imgs/background.png", { generateMipMaps: true });
 background_texture.filter = TextureFilterModes.Linear;
 background_texture.wrapMode = TextureWrapModes.Repeat;
@@ -481,6 +488,11 @@ let cur_hit: {
     hitter: Enemy,
     hitted: Enemy,
     time_until_end: number,
+    hitter_new_vel: Vector2,
+    hitted_new_vel: Vector2,
+    starting: boolean,
+    merge: boolean,
+    particle: Sprite,
 } | null = null;
 
 let player_pos = Shaku.gfx.getCanvasSize().mulSelf(.5);
@@ -499,16 +511,17 @@ let bullets: Bullet[] = [];
 // for (let k = 0; k < 4; k++) {
 // enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 // }
-enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-// enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-enemies.push(new SpiralMoveEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random() * .2 + .4, Math.random())));
+enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random() * .2 + .4, Math.random())));
+enemies[0].sprite.color = Color.red;
 // enemies.push(new SpiralMoveEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-enemies.push(new EightTurretEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+// // enemies.push(new SpiralMoveEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 // enemies.push(new EightTurretEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-enemies.push(new DelayedEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+// // enemies.push(new EightTurretEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 // enemies.push(new DelayedEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-enemies.push(new SpiralTurretEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-enemies.push(new SpiralTrailEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+// // enemies.push(new DelayedEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+// enemies.push(new SpiralTurretEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+// enemies.push(new SpiralTrailEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 
 addEventListener("resize", (event) => {
     Shaku.gfx!.maximizeCanvasSize(false, false);
@@ -605,6 +618,27 @@ function step() {
         ));
         cur_hit.time_until_end -= Shaku.gameTime.delta;
         dt *= CONFIG.hit_slowdown;
+        if (cur_hit.starting) {
+            dt *= .2;
+            if (cur_hit!.time_until_end / CONFIG.dash_hit_duration < .5) {
+                cur_hit.starting = false;
+                if (cur_hit.merge) {
+                    enemies = enemies.filter(x => x !== cur_hit!.hitted && x !== cur_hit!.hitter);
+                    let new_enemy_1 = new Enemy(cur_hit!.hitted.pos.clone());
+                    // new_enemy_1.vel.copy(cur_hit.hitted_new_vel);
+                    new_enemy_1.sprite.color = Color.cyan;
+                    enemies.push(new_enemy_1);
+                    let new_enemy_2 = new Enemy(cur_hit!.hitter.pos.clone());
+                    new_enemy_2.sprite.color = Color.yellow;
+                    enemies.push(new_enemy_2);
+                    cur_hit.hitted = new_enemy_1;
+                    cur_hit.hitter = new_enemy_2;
+                } else {
+                    // cur_hit.hitted.vel.addSelf(cur_hit.hitted_new_vel);
+                    // cur_hit.hitter.vel.addSelf(cur_hit.hitter_new_vel);
+                }
+            }
+        }
 
         // draw enemy hit trail
         for (let k = 0; k < last_enemy_dash_dist; k += 4) {
@@ -613,8 +647,10 @@ function step() {
         }
 
         if (cur_hit.time_until_end <= 0) {
-            cur_hit = null;
             Shaku.gfx.setCameraOrthographic(Vector2.zero);
+            cur_hit.hitted.vel.addSelf(cur_hit.hitted_new_vel);
+            cur_hit.hitter.vel.addSelf(cur_hit.hitter_new_vel);
+            cur_hit = null;
         }
     } else {
         // Starting a dash?
@@ -669,11 +705,29 @@ function step() {
                         first_hit.hit_enemy.vel.addSelf(second_ray_dir.mul(CONFIG.enemy_throwback_speed));
                         last_enemy_dash_dist = CONFIG.enemy_throwback_dist;
                     } else {
+                        // let hitter_new_vel = second_ray_dir
                         first_hit.hit_enemy.pos.addSelf(second_ray_dir.mul(second_hit.hit_dist))
+                        let hit_to_hitter = second_hit.hit_enemy.pos.sub(first_hit.hit_enemy.pos).normalizeSelf();
+                        // let hitter_new_vel = second_ray_dir.sub(hit_to_hitter.mul(Vector2.dot(hit_to_hitter, second_ray_dir)));
+                        // let hitted_new_vel = second_ray_dir.sub(hitter_new_vel);
+                        let hitted_new_vel = hit_to_hitter.mul(Vector2.dot(hit_to_hitter, second_ray_dir));
+                        let hitter_new_vel = second_ray_dir.sub(hitted_new_vel);
+                        // first_hit.hit_enemy.vel.addSelf(hitter_new_vel.mul(500));
+                        // second_hit.hit_enemy.vel.addSelf(hitted_new_vel.mul(500));
+                        let new_particle = new Sprite(merge_particle_texture);
+                        new_particle.position = first_hit.hit_enemy.pos.add(hit_to_hitter.mul(CONFIG.enemy_radius));
+                        new_particle.rotation = hit_to_hitter.getRadians() + Math.PI / 2;
+                        // Avoid straight shoots having too much energy
+                        let damp = remap(Vector2.dot(second_ray_dir, hit_to_hitter), 0, 1, 1, .75);
                         cur_hit = {
                             hitter: first_hit.hit_enemy,
                             hitted: second_hit.hit_enemy,
                             time_until_end: CONFIG.dash_hit_duration,
+                            hitter_new_vel: hitter_new_vel.mul(750 * damp),
+                            hitted_new_vel: hitted_new_vel.mul(750 * damp),
+                            starting: true,
+                            merge: true,
+                            particle: new_particle,
                         }
                         last_enemy_dash_dist = second_hit.hit_dist;
                     }
@@ -733,6 +787,29 @@ function step() {
     // Shaku.gfx.useEffect(screen_texture_effect);
     enemies.forEach(x => x.draw());
     bullets.forEach(x => x.draw());
+    if (cur_hit !== null) {
+        let t = cur_hit.time_until_end / CONFIG.dash_hit_duration;
+        if (cur_hit.merge) {
+            t = remap(t, .9, 0, 0, 1);
+            t = Math.floor(t * 9);
+            console.log(t);
+            if (t >= 0) {
+                cur_hit.particle.setSourceFromSpritesheet(
+                    new Vector2(t % 3, Math.floor(t / 3)), new Vector2(3, 3), 0, true
+                );
+                cur_hit.particle.size.mulSelf(1.7);
+                Shaku.gfx.drawSprite(cur_hit.particle);
+            }
+        } else {
+            // // t = Math.floor((1 - t) * 3);
+            // // console.log(t);
+            // let n = (t > .8) ? 0 : (t > .5 ? 1 : 2);
+            // cur_hit.particle.setSourceFromSpritesheet(
+            //     new Vector2(n % 3, Math.floor(n / 3)), new Vector2(3, 2), 0, true
+            // );
+            // Shaku.gfx.drawSprite(cur_hit.particle);
+        }
+    }
 
     player_tail_sprite.size.copy(player_sprite.size)
     for (let k = 0; k < CONFIG.tail_frames; k++) {

@@ -4,8 +4,8 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __commonJS = (cb, mod2) => function __require() {
-  return mod2 || (0, cb[__getOwnPropNames(cb)[0]])((mod2 = { exports: {} }).exports, mod2), mod2.exports;
+var __commonJS = (cb, mod) => function __require() {
+  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -15,9 +15,9 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
-var __toESM = (mod2, isNodeMode, target) => (target = mod2 != null ? __create(__getProtoOf(mod2)) : {}, __copyProps(
-  isNodeMode || !mod2 || !mod2.__esModule ? __defProp(target, "default", { value: mod2, enumerable: true }) : target,
-  mod2
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
 ));
 
 // ../Shaku/lib/manager.js
@@ -10977,6 +10977,10 @@ enemy_hit_trail_sprite.size.mulSelf(CONFIG.enemy_radius / 50);
 enemy_hit_trail_sprite.color = new import_color.default(1, 1, 1, 0.125);
 var bullet_texture = await import_shaku.default.assets.loadTexture("imgs/bullet.png", { generateMipMaps: true });
 bullet_texture.filter = import_gfx2.TextureFilterModes.Linear;
+var crash_particle_texture = await import_shaku.default.assets.loadTexture("imgs/crash_particle.png", { generateMipMaps: true });
+crash_particle_texture.filter = import_gfx2.TextureFilterModes.Linear;
+var merge_particle_texture = await import_shaku.default.assets.loadTexture("imgs/merge_particle.png", { generateMipMaps: true });
+merge_particle_texture.filter = import_gfx2.TextureFilterModes.Linear;
 var background_texture = await import_shaku.default.assets.loadTexture("imgs/background.png", { generateMipMaps: true });
 background_texture.filter = import_gfx2.TextureFilterModes.Linear;
 background_texture.wrapMode = import_gfx2.TextureWrapModes.Repeat;
@@ -11012,43 +11016,6 @@ function bestDir(steer) {
   let best_index = argmax(steer);
   return import_vector2.default.fromRadians(Math.PI * 2 * best_index / CONFIG.steer_resolution).mulSelf(steer[best_index]);
 }
-var Bullet = class {
-  constructor(pos, vel) {
-    this.pos = pos;
-    this.vel = vel;
-    this.sprite = new import_shaku.default.gfx.Sprite(bullet_texture);
-    this.sprite.size.mulSelf(CONFIG.bullet_radius / 50);
-    this.sprite.position = pos;
-  }
-  sprite;
-  update(dt) {
-    this.pos.addSelf(this.vel.mul(dt));
-  }
-  draw() {
-    this.sprite.rotation = this.vel.getRadians();
-    import_shaku.default.gfx.drawSprite(this.sprite);
-  }
-};
-var StaticBullet = class extends Bullet {
-  constructor(pos, remaining_life) {
-    super(pos, import_vector2.default.zero);
-    this.pos = pos;
-    this.remaining_life = remaining_life;
-    this.sprite = new import_shaku.default.gfx.Sprite(bullet_texture);
-    this.sprite.size.mulSelf(CONFIG.bullet_radius / 50);
-    this.sprite.position = pos;
-  }
-  sprite;
-  update(dt) {
-    this.remaining_life -= dt;
-    if (this.remaining_life <= 0) {
-      bullets = bullets.filter((x) => x !== this);
-    }
-  }
-  draw() {
-    import_shaku.default.gfx.drawSprite(this.sprite);
-  }
-};
 var Enemy = class {
   constructor(pos) {
     this.pos = pos;
@@ -11126,103 +11093,6 @@ var Enemy = class {
     import_shaku.default.gfx.drawSprite(this.sprite);
   }
 };
-var DelayedEnemy = class extends Enemy {
-  cur_goal;
-  constructor(pos) {
-    super(pos);
-    this.cur_goal = null;
-  }
-  update(dt) {
-    this.steer.fill(0);
-    if (this.cur_goal === null) {
-      let delta = player_pos.sub(this.pos);
-      this.dir = rotateTowards(this.dir, delta, CONFIG.delayed_rot_speed * dt);
-      if (Math.abs(radiansBetween(this.dir, delta.normalized())) <= 1e-4) {
-        this.cur_goal = player_pos.clone();
-      }
-    } else {
-      this.steer_chaseDir(this.dir, CONFIG.enemy_speed * 30);
-      if (import_vector2.default.dot(this.dir, this.cur_goal.sub(this.pos)) <= 0) {
-        this.cur_goal = null;
-      }
-    }
-    this.steer_hoverAndDodge();
-    this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
-    this.vel.mulSelf(1 / (1 + dt * CONFIG.enemy_friction * 3));
-    this.pos.addSelf(this.vel.mul(dt));
-  }
-};
-var SpiralMoveEnemy = class extends Enemy {
-  update(dt) {
-    this.steer.fill(0);
-    let delta = player_pos.sub(this.pos);
-    let perp = delta.rotatedDegrees(90).mulSelf(0.5);
-    this.steer_chaseDir(import_vector2.default.lerp(delta, perp, 0.7).normalizeSelf(), CONFIG.enemy_acc * 2);
-    this.steer_hoverAndDodge();
-    this.endUpdate(dt);
-  }
-};
-var SpiralTrailEnemy = class extends Enemy {
-  time_until_next_bullet;
-  constructor(pos) {
-    super(pos);
-    this.time_until_next_bullet = Math.random() * CONFIG.turret_delay * 0.1;
-  }
-  update(dt) {
-    this.steer.fill(0);
-    let delta = player_pos.sub(this.pos);
-    let perp = delta.rotatedDegrees(90).mulSelf(0.5);
-    this.steer_chaseDir(import_vector2.default.lerp(delta, perp, 0.7).normalizeSelf(), CONFIG.enemy_acc * 2);
-    this.time_until_next_bullet -= dt;
-    if (this.time_until_next_bullet <= 0) {
-      this.time_until_next_bullet = CONFIG.turret_delay * 0.1;
-      bullets.push(new StaticBullet(this.pos.clone(), 4));
-    }
-    this.steer_hoverAndDodge();
-    this.endUpdate(dt);
-  }
-};
-var SpiralTurretEnemy = class extends Enemy {
-  time_until_next_shoot;
-  constructor(pos) {
-    super(pos);
-    this.time_until_next_shoot = CONFIG.turret_delay * Math.random() * 0.1;
-  }
-  update(dt) {
-    this.steer.fill(0);
-    this.time_until_next_shoot -= dt;
-    this.dir = this.dir.rotatedRadians(dt * -CONFIG.delayed_rot_speed * 2);
-    if (this.time_until_next_shoot <= 0) {
-      this.time_until_next_shoot = CONFIG.turret_delay * 0.1;
-      bullets.push(new Bullet(this.pos.clone(), this.dir.mul(CONFIG.bullet_speed)));
-    }
-    this.steer_hoverAndDodge();
-    this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
-    this.vel.mulSelf(1 / (1 + dt * CONFIG.enemy_friction * 3));
-    this.pos.addSelf(this.vel.mul(dt));
-  }
-};
-var EightTurretEnemy = class extends Enemy {
-  time_until_next_wave;
-  constructor(pos) {
-    super(pos);
-    this.time_until_next_wave = CONFIG.turret_delay * Math.random();
-  }
-  update(dt) {
-    this.steer.fill(0);
-    this.time_until_next_wave -= dt;
-    if (this.time_until_next_wave <= 0) {
-      this.time_until_next_wave = CONFIG.turret_delay;
-      for (let k = 0; k < 8; k++) {
-        bullets.push(new Bullet(this.pos.clone(), import_vector2.default.fromRadians(Math.PI * 2 * k / 8).mulSelf(CONFIG.bullet_speed)));
-      }
-    }
-    this.steer_hoverAndDodge();
-    this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
-    this.vel.mulSelf(1 / (1 + dt * 3 * CONFIG.enemy_friction));
-    this.pos.addSelf(this.vel.mul(dt));
-  }
-};
 var time_since_dash = Infinity;
 var last_dash_pos = import_vector2.default.zero;
 var last_dash_dir = import_vector2.default.zero;
@@ -11241,12 +11111,9 @@ while (player_pos_history.length < CONFIG.tail_frames) {
 var screen_shake_noise = new import_perlin.default(Math.random());
 var enemies = [];
 var bullets = [];
-enemies.push(new Enemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-enemies.push(new SpiralMoveEnemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-enemies.push(new EightTurretEnemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-enemies.push(new DelayedEnemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-enemies.push(new SpiralTurretEnemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-enemies.push(new SpiralTrailEnemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+enemies.push(new Enemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random() * 0.2 + 0.4, Math.random())));
+enemies.push(new Enemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random() * 0.2 + 0.4, Math.random())));
+enemies[0].sprite.color = import_color.default.red;
 addEventListener("resize", (event) => {
   import_shaku.default.gfx.maximizeCanvasSize(false, false);
   FULL_SCREEN_SPRITE.size = import_shaku.default.gfx.getCanvasSize();
@@ -11314,13 +11181,33 @@ function step() {
     ));
     cur_hit.time_until_end -= import_shaku.default.gameTime.delta;
     dt *= CONFIG.hit_slowdown;
+    if (cur_hit.starting) {
+      dt *= 0.2;
+      if (cur_hit.time_until_end / CONFIG.dash_hit_duration < 0.5) {
+        cur_hit.starting = false;
+        if (cur_hit.merge) {
+          enemies = enemies.filter((x) => x !== cur_hit.hitted && x !== cur_hit.hitter);
+          let new_enemy_1 = new Enemy(cur_hit.hitted.pos.clone());
+          new_enemy_1.sprite.color = import_color.default.cyan;
+          enemies.push(new_enemy_1);
+          let new_enemy_2 = new Enemy(cur_hit.hitter.pos.clone());
+          new_enemy_2.sprite.color = import_color.default.yellow;
+          enemies.push(new_enemy_2);
+          cur_hit.hitted = new_enemy_1;
+          cur_hit.hitter = new_enemy_2;
+        } else {
+        }
+      }
+    }
     for (let k = 0; k < last_enemy_dash_dist; k += 4) {
       enemy_hit_trail_sprite.position.copy(last_enemy_dash_pos.add(last_enemy_dash_dir.mul(k)));
       import_shaku.default.gfx.drawSprite(enemy_hit_trail_sprite);
     }
     if (cur_hit.time_until_end <= 0) {
-      cur_hit = null;
       import_shaku.default.gfx.setCameraOrthographic(import_vector2.default.zero);
+      cur_hit.hitted.vel.addSelf(cur_hit.hitted_new_vel);
+      cur_hit.hitter.vel.addSelf(cur_hit.hitter_new_vel);
+      cur_hit = null;
     }
   } else {
     if (time_since_dash >= CONFIG.dash_cooldown) {
@@ -11357,10 +11244,22 @@ function step() {
             last_enemy_dash_dist = CONFIG.enemy_throwback_dist;
           } else {
             first_hit.hit_enemy.pos.addSelf(second_ray_dir.mul(second_hit.hit_dist));
+            let hit_to_hitter = second_hit.hit_enemy.pos.sub(first_hit.hit_enemy.pos).normalizeSelf();
+            let hitted_new_vel = hit_to_hitter.mul(import_vector2.default.dot(hit_to_hitter, second_ray_dir));
+            let hitter_new_vel = second_ray_dir.sub(hitted_new_vel);
+            let new_particle = new import_sprite.default(merge_particle_texture);
+            new_particle.position = first_hit.hit_enemy.pos.add(hit_to_hitter.mul(CONFIG.enemy_radius));
+            new_particle.rotation = hit_to_hitter.getRadians() + Math.PI / 2;
+            let damp = remap(import_vector2.default.dot(second_ray_dir, hit_to_hitter), 0, 1, 1, 0.75);
             cur_hit = {
               hitter: first_hit.hit_enemy,
               hitted: second_hit.hit_enemy,
-              time_until_end: CONFIG.dash_hit_duration
+              time_until_end: CONFIG.dash_hit_duration,
+              hitter_new_vel: hitter_new_vel.mul(750 * damp),
+              hitted_new_vel: hitted_new_vel.mul(750 * damp),
+              starting: true,
+              merge: true,
+              particle: new_particle
             };
             last_enemy_dash_dist = second_hit.hit_dist;
           }
@@ -11389,6 +11288,25 @@ function step() {
   bullets.forEach((x) => x.update(dt));
   enemies.forEach((x) => x.draw());
   bullets.forEach((x) => x.draw());
+  if (cur_hit !== null) {
+    let t = cur_hit.time_until_end / CONFIG.dash_hit_duration;
+    if (cur_hit.merge) {
+      t = remap(t, 0.9, 0, 0, 1);
+      t = Math.floor(t * 9);
+      console.log(t);
+      if (t >= 0) {
+        cur_hit.particle.setSourceFromSpritesheet(
+          new import_vector2.default(t % 3, Math.floor(t / 3)),
+          new import_vector2.default(3, 3),
+          0,
+          true
+        );
+        cur_hit.particle.size.mulSelf(1.7);
+        import_shaku.default.gfx.drawSprite(cur_hit.particle);
+      }
+    } else {
+    }
+  }
   player_tail_sprite.size.copy(player_sprite.size);
   for (let k = 0; k < CONFIG.tail_frames; k++) {
     player_tail_sprite.position.copy(player_pos_history.get(k));
@@ -11435,25 +11353,16 @@ async function loadAsciiTexture(ascii, colors) {
 function lerp(a, b, t) {
   return a * (1 - t) + b * t;
 }
+function remap(value, old_a, old_b, new_a, new_b) {
+  let t = (value - old_a) / (old_b - old_a);
+  return t * (new_b - new_a) + new_a;
+}
 function clamp(value, a, b) {
   if (value < a)
     return a;
   if (value > b)
     return b;
   return value;
-}
-function mod(n, m) {
-  return (n % m + m) % m;
-}
-function radiansBetween(a, b) {
-  let radians = b.getRadians() - a.getRadians();
-  let eps = 0.01;
-  return mod(radians + Math.PI + eps, Math.PI * 2) - Math.PI + eps;
-}
-function rotateTowards(cur_val, target_val, max_radians) {
-  let radians = radiansBetween(cur_val, target_val);
-  radians = clamp(radians, -max_radians, max_radians);
-  return cur_val.rotatedRadians(radians);
 }
 function argmax(vals) {
   if (vals.length === 0) {
