@@ -1195,17 +1195,17 @@ var require_texture_filter_modes = __commonJS({
 var require_texture_wrap_modes = __commonJS({
   "../Shaku/lib/gfx/texture_wrap_modes.js"(exports, module) {
     "use strict";
-    var TextureWrapModes = {
+    var TextureWrapModes2 = {
       Clamp: "CLAMP_TO_EDGE",
       Repeat: "REPEAT",
       RepeatMirrored: "MIRRORED_REPEAT"
     };
-    Object.defineProperty(TextureWrapModes, "_values", {
-      value: new Set(Object.values(TextureWrapModes)),
+    Object.defineProperty(TextureWrapModes2, "_values", {
+      value: new Set(Object.values(TextureWrapModes2)),
       writable: false
     });
-    Object.freeze(TextureWrapModes);
-    module.exports = { TextureWrapModes };
+    Object.freeze(TextureWrapModes2);
+    module.exports = { TextureWrapModes: TextureWrapModes2 };
   }
 });
 
@@ -1283,7 +1283,7 @@ var require_texture_asset = __commonJS({
     "use strict";
     var Asset = require_asset();
     var { TextureFilterMode, TextureFilterModes: TextureFilterModes2 } = require_texture_filter_modes();
-    var { TextureWrapMode, TextureWrapModes } = require_texture_wrap_modes();
+    var { TextureWrapMode, TextureWrapModes: TextureWrapModes2 } = require_texture_wrap_modes();
     var Color3 = require_color();
     var Vector22 = require_vector2();
     var _logger = require_logger().getLogger("assets");
@@ -3415,10 +3415,10 @@ var require_effect = __commonJS({
     var Color3 = require_color();
     var Rectangle = require_rectangle();
     var { TextureFilterMode, TextureFilterModes: TextureFilterModes2 } = require_texture_filter_modes();
-    var { TextureWrapMode, TextureWrapModes } = require_texture_wrap_modes();
+    var { TextureWrapMode, TextureWrapModes: TextureWrapModes2 } = require_texture_wrap_modes();
     var Matrix = require_matrix();
     var _logger = require_logger().getLogger("gfx-effect");
-    var Effect = class {
+    var Effect2 = class {
       _build(gl) {
         let program = gl.createProgram();
         {
@@ -3571,7 +3571,7 @@ var require_effect = __commonJS({
         if (texture === this._cachedValues.texture) {
           return false;
         }
-        let uniform = this._uniformBinds[Effect.UniformBinds.MainTexture];
+        let uniform = this._uniformBinds[Effect2.UniformBinds.MainTexture];
         if (uniform) {
           this._cachedValues.texture = texture;
           let glTexture = texture.texture || texture;
@@ -3583,7 +3583,7 @@ var require_effect = __commonJS({
         return false;
       }
       setColor(color) {
-        let uniform = this._uniformBinds[Effect.UniformBinds.Color];
+        let uniform = this._uniformBinds[Effect2.UniformBinds.Color];
         if (uniform) {
           if (color.equals(this._cachedValues.color)) {
             return;
@@ -3606,17 +3606,17 @@ var require_effect = __commonJS({
         if (!sourceRect) {
           sourceRect = new Rectangle(0, 0, texture.width, texture.height);
         }
-        let uvOffset = this._uniformBinds[Effect.UniformBinds.UvOffset];
+        let uvOffset = this._uniformBinds[Effect2.UniformBinds.UvOffset];
         if (uvOffset) {
           this.uniforms[uvOffset](sourceRect.x / texture.width, sourceRect.y / texture.height);
         }
-        let uvScale = this._uniformBinds[Effect.UniformBinds.UvScale];
+        let uvScale = this._uniformBinds[Effect2.UniformBinds.UvScale];
         if (uvScale) {
           this.uniforms[uvScale](sourceRect.width / texture.width, sourceRect.height / texture.height);
         }
       }
       setProjectionMatrix(matrix) {
-        let uniform = this._uniformBinds[Effect.UniformBinds.Projection];
+        let uniform = this._uniformBinds[Effect2.UniformBinds.Projection];
         if (uniform) {
           if (matrix.equals(this._cachedValues.projection)) {
             return;
@@ -3626,13 +3626,13 @@ var require_effect = __commonJS({
         }
       }
       setWorldMatrix(matrix) {
-        let uniform = this._uniformBinds[Effect.UniformBinds.World];
+        let uniform = this._uniformBinds[Effect2.UniformBinds.World];
         if (uniform) {
           this.uniforms[uniform](matrix.values);
         }
       }
       setPositionsAttribute(buffer) {
-        let attr = this._attributeBinds[Effect.AttributeBinds.Position];
+        let attr = this._attributeBinds[Effect2.AttributeBinds.Position];
         if (attr) {
           if (buffer === this._cachedValues.positions) {
             return;
@@ -3642,7 +3642,7 @@ var require_effect = __commonJS({
         }
       }
       setTextureCoordsAttribute(buffer) {
-        let attr = this._attributeBinds[Effect.AttributeBinds.TextureCoords];
+        let attr = this._attributeBinds[Effect2.AttributeBinds.TextureCoords];
         if (attr) {
           if (buffer === this._cachedValues.coords) {
             return;
@@ -3652,7 +3652,7 @@ var require_effect = __commonJS({
         }
       }
       setColorsAttribute(buffer) {
-        let attr = this._attributeBinds[Effect.AttributeBinds.Colors];
+        let attr = this._attributeBinds[Effect2.AttributeBinds.Colors];
         if (attr) {
           if (buffer === this._cachedValues.colors) {
             return;
@@ -3699,8 +3699,8 @@ var require_effect = __commonJS({
       writable: false
     });
     Object.freeze(UniformTypes);
-    Effect.UniformTypes = UniformTypes;
-    Effect.UniformBinds = {
+    Effect2.UniformTypes = UniformTypes;
+    Effect2.UniformBinds = {
       MainTexture: "texture",
       Color: "color",
       Projection: "projection",
@@ -3708,8 +3708,8 @@ var require_effect = __commonJS({
       UvOffset: "uvOffset",
       UvScale: "uvScale"
     };
-    Object.freeze(Effect.UniformBinds);
-    Effect.AttributeTypes = {
+    Object.freeze(Effect2.UniformBinds);
+    Effect2.AttributeTypes = {
       Byte: "BYTE",
       Short: "SHORT",
       UByte: "UNSIGNED_BYTE",
@@ -3717,13 +3717,13 @@ var require_effect = __commonJS({
       Float: "FLOAT",
       HalfFloat: "HALF_FLOAT"
     };
-    Object.freeze(Effect.AttributeTypes);
-    Effect.AttributeBinds = {
+    Object.freeze(Effect2.AttributeTypes);
+    Effect2.AttributeBinds = {
       Position: "position",
       TextureCoords: "uvs",
       Colors: "colors"
     };
-    Object.freeze(Effect.AttributeBinds);
+    Object.freeze(Effect2.AttributeBinds);
     function _setTextureFilter(gl, filter) {
       if (!TextureFilterModes2._values.has(filter)) {
         throw new Error("Invalid texture filter mode! Please pick a value from 'TextureFilterModes'.");
@@ -3736,16 +3736,16 @@ var require_effect = __commonJS({
       if (wrapY === void 0) {
         wrapY = wrapX;
       }
-      if (!TextureWrapModes._values.has(wrapX)) {
+      if (!TextureWrapModes2._values.has(wrapX)) {
         throw new Error("Invalid texture wrap mode! Please pick a value from 'TextureWrapModes'.");
       }
-      if (!TextureWrapModes._values.has(wrapY)) {
+      if (!TextureWrapModes2._values.has(wrapY)) {
         throw new Error("Invalid texture wrap mode! Please pick a value from 'TextureWrapModes'.");
       }
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl[wrapX]);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl[wrapY]);
     }
-    module.exports = Effect;
+    module.exports = Effect2;
   }
 });
 
@@ -3753,7 +3753,7 @@ var require_effect = __commonJS({
 var require_basic = __commonJS({
   "../Shaku/lib/gfx/effects/basic.js"(exports, module) {
     "use strict";
-    var Effect = require_effect();
+    var Effect2 = require_effect();
     var vertexShader = `
 attribute vec3 position;
 attribute vec2 coord;
@@ -3787,7 +3787,7 @@ void main(void) {
     gl_FragColor.rgb *= gl_FragColor.a;
 }
     `;
-    var BasicEffect = class extends Effect {
+    var BasicEffect2 = class extends Effect2 {
       get vertexCode() {
         return vertexShader;
       }
@@ -3796,20 +3796,20 @@ void main(void) {
       }
       get uniformTypes() {
         return {
-          "texture": { type: Effect.UniformTypes.Texture, bind: Effect.UniformBinds.MainTexture },
-          "projection": { type: Effect.UniformTypes.Matrix, bind: Effect.UniformBinds.Projection },
-          "world": { type: Effect.UniformTypes.Matrix, bind: Effect.UniformBinds.World }
+          "texture": { type: Effect2.UniformTypes.Texture, bind: Effect2.UniformBinds.MainTexture },
+          "projection": { type: Effect2.UniformTypes.Matrix, bind: Effect2.UniformBinds.Projection },
+          "world": { type: Effect2.UniformTypes.Matrix, bind: Effect2.UniformBinds.World }
         };
       }
       get attributeTypes() {
         return {
-          "position": { size: 3, type: Effect.AttributeTypes.Float, normalize: false, bind: Effect.AttributeBinds.Position },
-          "coord": { size: 2, type: Effect.AttributeTypes.Float, normalize: false, bind: Effect.AttributeBinds.TextureCoords },
-          "color": { size: 4, type: Effect.AttributeTypes.Float, normalize: false, bind: Effect.AttributeBinds.Colors }
+          "position": { size: 3, type: Effect2.AttributeTypes.Float, normalize: false, bind: Effect2.AttributeBinds.Position },
+          "coord": { size: 2, type: Effect2.AttributeTypes.Float, normalize: false, bind: Effect2.AttributeBinds.TextureCoords },
+          "color": { size: 4, type: Effect2.AttributeTypes.Float, normalize: false, bind: Effect2.AttributeBinds.Colors }
         };
       }
     };
-    module.exports = BasicEffect;
+    module.exports = BasicEffect2;
   }
 });
 
@@ -3817,7 +3817,7 @@ void main(void) {
 var require_msdf_font = __commonJS({
   "../Shaku/lib/gfx/effects/msdf_font.js"(exports, module) {
     "use strict";
-    var Effect = require_effect();
+    var Effect2 = require_effect();
     var vertexShader = `#version 300 es
 in vec3 a_position;
 in vec2 a_coord;
@@ -3858,7 +3858,7 @@ void main(void) {
   vec3 color = v_color.rgb * alpha;
   FragColor = vec4(color, alpha) * v_color.a;
 }`;
-    var MsdfFontEffect = class extends Effect {
+    var MsdfFontEffect = class extends Effect2 {
       get vertexCode() {
         return vertexShader;
       }
@@ -3867,16 +3867,16 @@ void main(void) {
       }
       get uniformTypes() {
         return {
-          "u_texture": { type: Effect.UniformTypes.Texture, bind: Effect.UniformBinds.MainTexture },
-          "u_projection": { type: Effect.UniformTypes.Matrix, bind: Effect.UniformBinds.Projection },
-          "u_world": { type: Effect.UniformTypes.Matrix, bind: Effect.UniformBinds.World }
+          "u_texture": { type: Effect2.UniformTypes.Texture, bind: Effect2.UniformBinds.MainTexture },
+          "u_projection": { type: Effect2.UniformTypes.Matrix, bind: Effect2.UniformBinds.Projection },
+          "u_world": { type: Effect2.UniformTypes.Matrix, bind: Effect2.UniformBinds.World }
         };
       }
       get attributeTypes() {
         return {
-          "a_position": { size: 3, type: Effect.AttributeTypes.Float, normalize: false, bind: Effect.AttributeBinds.Position },
-          "a_coord": { size: 2, type: Effect.AttributeTypes.Float, normalize: false, bind: Effect.AttributeBinds.TextureCoords },
-          "a_color": { size: 4, type: Effect.AttributeTypes.Float, normalize: false, bind: Effect.AttributeBinds.Colors }
+          "a_position": { size: 3, type: Effect2.AttributeTypes.Float, normalize: false, bind: Effect2.AttributeBinds.Position },
+          "a_coord": { size: 2, type: Effect2.AttributeTypes.Float, normalize: false, bind: Effect2.AttributeBinds.TextureCoords },
+          "a_color": { size: 4, type: Effect2.AttributeTypes.Float, normalize: false, bind: Effect2.AttributeBinds.Colors }
         };
       }
     };
@@ -4885,10 +4885,10 @@ var require_gfx = __commonJS({
     var Color3 = require_color();
     var { BlendMode, BlendModes: BlendModes2 } = require_blend_modes();
     var Rectangle = require_rectangle();
-    var { Effect, BasicEffect, MsdfFontEffect } = require_effects();
+    var { Effect: Effect2, BasicEffect: BasicEffect2, MsdfFontEffect } = require_effects();
     var TextureAsset = require_texture_asset();
     var { TextureFilterMode, TextureFilterModes: TextureFilterModes2 } = require_texture_filter_modes();
-    var { TextureWrapMode, TextureWrapModes } = require_texture_wrap_modes();
+    var { TextureWrapMode, TextureWrapModes: TextureWrapModes2 } = require_texture_wrap_modes();
     var MeshGenerator = require_mesh_generator();
     var Matrix = require_matrix();
     var Camera = require_camera();
@@ -4921,7 +4921,7 @@ var require_gfx = __commonJS({
         this.builtinEffects = {};
         this.meshes = {};
         this.defaultTextureFilter = TextureFilterModes2.Nearest;
-        this.defaultTextureWrapMode = TextureWrapModes.Clamp;
+        this.defaultTextureWrapMode = TextureWrapModes2.Clamp;
         this.whiteTexture = null;
         this._renderTarget = null;
         this._viewport = null;
@@ -4951,10 +4951,10 @@ var require_gfx = __commonJS({
         return this._canvas;
       }
       get Effect() {
-        return Effect;
+        return Effect2;
       }
       get BasicEffect() {
-        return BasicEffect;
+        return BasicEffect2;
       }
       get MsdfFontEffect() {
         return MsdfFontEffect;
@@ -4995,7 +4995,7 @@ var require_gfx = __commonJS({
         return camera;
       }
       createEffect(type) {
-        if (!(type.prototype instanceof Effect)) {
+        if (!(type.prototype instanceof Effect2)) {
           throw new Error("'type' must be a class type that inherits from 'Effect'.");
         }
         let effect = new type();
@@ -5130,7 +5130,7 @@ var require_gfx = __commonJS({
             _logger.error("Can't get WebGL context!");
             return reject2("Failed to get WebGL context from canvas!");
           }
-          this.builtinEffects.Basic = this.createEffect(BasicEffect);
+          this.builtinEffects.Basic = this.createEffect(BasicEffect2);
           this.builtinEffects.MsdfFont = this.createEffect(MsdfFontEffect);
           TextureAsset._setWebGl(this._gl);
           this._fb = this._gl.createFramebuffer();
@@ -5581,7 +5581,7 @@ var require_gfx = __commonJS({
         return BlendModes2;
       }
       get TextureWrapModes() {
-        return TextureWrapModes;
+        return TextureWrapModes2;
       }
       get TextureFilterModes() {
         return TextureFilterModes2;
@@ -5610,10 +5610,10 @@ var require_gfx = __commonJS({
         if (wrapY === void 0) {
           wrapY = wrapX;
         }
-        if (!TextureWrapModes._values.has(wrapX)) {
+        if (!TextureWrapModes2._values.has(wrapX)) {
           throw new Error("Invalid texture wrap mode! Please pick a value from 'TextureWrapModes'.");
         }
-        if (!TextureWrapModes._values.has(wrapY)) {
+        if (!TextureWrapModes2._values.has(wrapY)) {
           throw new Error("Invalid texture wrap mode! Please pick a value from 'TextureWrapModes'.");
         }
         this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_WRAP_S, this._gl[wrapX]);
@@ -8198,7 +8198,7 @@ var require_deque = __commonJS({
 });
 
 // src/main.ts
-var import_gfx = __toESM(require_gfx2());
+var import_gfx2 = __toESM(require_gfx2());
 var import_shaku = __toESM(require_shaku());
 
 // node_modules/dat.gui/build/dat.gui.module.js
@@ -10665,6 +10665,69 @@ var import_vector2 = __toESM(require_vector2());
 var import_circle = __toESM(require_circle());
 var import_perlin = __toESM(require_perlin());
 var import_double_ended_queue = __toESM(require_deque());
+
+// src/screen_texture_effect.ts
+var import_effect = __toESM(require_effect());
+var import_gfx = __toESM(require_gfx2());
+var ScreenTextureEffect = class extends import_gfx.BasicEffect {
+  get vertexCode() {
+    return `attribute vec3 position;
+        attribute vec2 coord;
+        attribute vec4 color;
+        
+        uniform mat4 projection;
+        uniform mat4 world;
+        
+        varying vec2 v_texCoord;
+        varying vec2 v_screenCord;
+        varying vec4 v_color;
+        
+        void main(void) {
+            gl_Position = projection * world * vec4(position, 1.0);
+            gl_PointSize = 1.0;
+            v_texCoord = coord;
+            v_screenCord = gl_Position.xy / gl_Position.w;
+            v_color = color;
+        }`;
+  }
+  get fragmentCode() {
+    return `
+        #ifdef GL_ES
+            precision highp float;
+        #endif
+        uniform sampler2D texture;
+
+        uniform sampler2D textureR;
+        uniform sampler2D textureG;
+        uniform sampler2D textureB;
+
+        varying vec2 v_texCoord;
+        varying vec2 v_screenCord;
+        varying vec4 v_color;
+        
+        void main(void) {
+            vec4 sampled = texture2D(texture, v_texCoord);
+            gl_FragColor = texture2D(textureR, v_screenCord * .5) * sampled.r + texture2D(textureG, .5 * v_screenCord) * sampled.g + texture2D(textureB, .5 * v_screenCord) * sampled.b;
+            gl_FragColor.a = sampled.a;
+            gl_FragColor.rgb *= gl_FragColor.a;
+
+            // gl_FragColor = texture2D(texture, v_texCoord) * v_color;
+            // gl_FragColor.rgb *= gl_FragColor.a;
+        }`;
+  }
+  get uniformTypes() {
+    return {
+      "textureR": { type: import_effect.default.UniformTypes.Texture, bind: import_effect.default.UniformBinds.MainTexture },
+      "textureG": { type: import_effect.default.UniformTypes.Texture, bind: import_effect.default.UniformBinds.MainTexture },
+      "textureB": { type: import_effect.default.UniformTypes.Texture, bind: import_effect.default.UniformBinds.MainTexture },
+      "texture": { type: import_effect.default.UniformTypes.Texture, bind: import_effect.default.UniformBinds.MainTexture },
+      "projection": { type: import_effect.default.UniformTypes.Matrix, bind: import_effect.default.UniformBinds.Projection },
+      "world": { type: import_effect.default.UniformTypes.Matrix, bind: import_effect.default.UniformBinds.World }
+    };
+  }
+};
+
+// src/main.ts
 var CONFIG = {
   player_speed: 355,
   enemy_speed: 150,
@@ -10743,23 +10806,39 @@ import_shaku.default.startFrame();
 import_shaku.default.gfx.clear(import_shaku.default.utils.Color.cornflowerblue);
 import_shaku.default.endFrame();
 var paused = false;
+var COLOR_BACKGROUND = new import_color.default(0.2, 0.195, 0.205);
 var cursor_texture = await loadAsciiTexture(`0`, [import_color.default.white]);
 var cursor_sprite = new import_shaku.default.gfx.Sprite(cursor_texture);
 cursor_sprite.size.mulSelf(10);
 var player_texture = await import_shaku.default.assets.loadTexture("imgs/player.png", { generateMipMaps: true });
-player_texture.filter = import_gfx.TextureFilterModes.Linear;
+player_texture.filter = import_gfx2.TextureFilterModes.Linear;
 var player_sprite = new import_shaku.default.gfx.Sprite(player_texture);
 player_sprite.size.mulSelf(CONFIG.player_radius / 50);
 player_sprite.color = import_color.default.black;
 var player_tail_sprite = new import_shaku.default.gfx.Sprite(player_texture);
 player_tail_sprite.color = new import_color.default(0, 0, 0, 0.5);
 var enemy_texture = await import_shaku.default.assets.loadTexture("imgs/enemy.png", { generateMipMaps: true });
-enemy_texture.filter = import_gfx.TextureFilterModes.Linear;
+enemy_texture.filter = import_gfx2.TextureFilterModes.Linear;
 var enemy_hit_trail_sprite = new import_shaku.default.gfx.Sprite(enemy_texture);
 enemy_hit_trail_sprite.size.mulSelf(CONFIG.enemy_radius / 50);
 enemy_hit_trail_sprite.color = new import_color.default(1, 1, 1, 0.125);
 var bullet_texture = await import_shaku.default.assets.loadTexture("imgs/bullet.png", { generateMipMaps: true });
-bullet_texture.filter = import_gfx.TextureFilterModes.Linear;
+bullet_texture.filter = import_gfx2.TextureFilterModes.Linear;
+var grunge_r_texture = await import_shaku.default.assets.loadTexture("imgs/grunge_r.png", { generateMipMaps: true });
+grunge_r_texture.filter = import_gfx2.TextureFilterModes.Linear;
+grunge_r_texture.wrapMode = import_gfx2.TextureWrapModes.Repeat;
+var grunge_g_texture = await import_shaku.default.assets.loadTexture("imgs/grunge_g.png", { generateMipMaps: true });
+grunge_g_texture.filter = import_gfx2.TextureFilterModes.Linear;
+grunge_g_texture.wrapMode = import_gfx2.TextureWrapModes.Repeat;
+var grunge_b_texture = await import_shaku.default.assets.loadTexture("imgs/grunge_b.png", { generateMipMaps: true });
+grunge_b_texture.filter = import_gfx2.TextureFilterModes.Linear;
+grunge_b_texture.wrapMode = import_gfx2.TextureWrapModes.Repeat;
+var screen_texture_effect = import_shaku.default.gfx.createEffect(ScreenTextureEffect);
+import_shaku.default.gfx.useEffect(screen_texture_effect);
+screen_texture_effect.uniforms.textureR(grunge_r_texture, 1);
+screen_texture_effect.uniforms.textureG(grunge_g_texture, 2);
+screen_texture_effect.uniforms.textureB(grunge_b_texture, 3);
+import_shaku.default.gfx.useEffect(null);
 function addSteer(steer, fn) {
   for (let k = 0; k < CONFIG.steer_resolution; k++) {
     steer[k] += fn(import_vector2.default.fromRadians(Math.PI * 2 * k / CONFIG.steer_resolution));
@@ -11038,7 +11117,7 @@ function rayEnemiesCollision(pos, dir, ray_dist, ray_radius, exclude) {
 }
 function step() {
   import_shaku.default.startFrame();
-  import_shaku.default.gfx.clear(import_shaku.default.utils.Color.cornflowerblue);
+  import_shaku.default.gfx.clear(COLOR_BACKGROUND);
   if (import_shaku.default.input.pressed("escape")) {
     paused = !paused;
   }
@@ -11133,6 +11212,7 @@ function step() {
   player_sprite.position.copy(player_pos);
   enemies.forEach((x) => x.update(dt));
   bullets.forEach((x) => x.update(dt));
+  import_shaku.default.gfx.useEffect(screen_texture_effect);
   enemies.forEach((x) => x.draw());
   bullets.forEach((x) => x.draw());
   player_tail_sprite.size.copy(player_sprite.size);
@@ -11145,6 +11225,7 @@ function step() {
   player_pos_history.insertFront(player_pos.clone());
   import_shaku.default.gfx.drawSprite(player_sprite);
   import_shaku.default.gfx.drawSprite(cursor_sprite);
+  import_shaku.default.gfx.useEffect(null);
   time_since_dash += import_shaku.default.gameTime.delta;
   import_shaku.default.endFrame();
   import_shaku.default.requestAnimationFrame(step);
@@ -11169,7 +11250,7 @@ async function loadAsciiTexture(ascii, colors) {
       import_shaku.default.gfx.fillRect(
         new import_shaku.default.utils.Rectangle(i, height - j - 1, 1, 1),
         col,
-        import_gfx.BlendModes.Opaque,
+        import_gfx2.BlendModes.Opaque,
         0
       );
     }

@@ -1,4 +1,4 @@
-import { BlendModes, TextureFilterModes } from "shaku/lib/gfx";
+import { BlendModes, TextureFilterModes, TextureWrapModes } from "shaku/lib/gfx";
 import Shaku from "shaku/lib/shaku";
 import TextureAsset from "shaku/lib/assets/texture_asset";
 import * as dat from 'dat.gui';
@@ -9,6 +9,7 @@ import Circle from "shaku/lib/utils/circle";
 import Perlin from "shaku/lib/utils/perlin";
 
 import Deque from "double-ended-queue";
+import { ScreenTextureEffect } from "./screen_texture_effect";
 
 const CONFIG = {
     player_speed: 355, // 2.25s to cross the 800px screen
@@ -89,6 +90,7 @@ document.body.appendChild(Shaku!.gfx!.canvas);
 Shaku.gfx!.setResolution(800, 600, true);
 Shaku.gfx!.centerCanvas();
 // Shaku.gfx!.maximizeCanvasSize(false, false);
+// const SCALING = Shaku.gfx.getCanvasSize().x / 800;
 
 
 // Loading Screen
@@ -97,6 +99,8 @@ Shaku.gfx!.clear(Shaku.utils.Color.cornflowerblue);
 Shaku.endFrame();
 
 let paused = false;
+
+const COLOR_BACKGROUND = new Color(.2, .195, .205);
 
 // TODO: INIT STUFF AND LOAD ASSETS HERE
 let cursor_texture = await loadAsciiTexture(`0`, [Color.white]);
@@ -120,6 +124,27 @@ enemy_hit_trail_sprite.color = new Color(1, 1, 1, .125);
 
 let bullet_texture = await Shaku.assets.loadTexture("imgs/bullet.png", { generateMipMaps: true });
 bullet_texture.filter = TextureFilterModes.Linear;
+
+let grunge_r_texture = await Shaku.assets.loadTexture("imgs/grunge_r.png", { generateMipMaps: true });
+grunge_r_texture.filter = TextureFilterModes.Linear;
+grunge_r_texture.wrapMode = TextureWrapModes.Repeat;
+let grunge_g_texture = await Shaku.assets.loadTexture("imgs/grunge_g.png", { generateMipMaps: true });
+grunge_g_texture.filter = TextureFilterModes.Linear;
+grunge_g_texture.wrapMode = TextureWrapModes.Repeat;
+let grunge_b_texture = await Shaku.assets.loadTexture("imgs/grunge_b.png", { generateMipMaps: true });
+grunge_b_texture.filter = TextureFilterModes.Linear;
+grunge_b_texture.wrapMode = TextureWrapModes.Repeat;
+
+let screen_texture_effect = Shaku.gfx.createEffect(ScreenTextureEffect);
+Shaku.gfx.useEffect(screen_texture_effect);
+// @ts-ignore
+screen_texture_effect.uniforms.textureR(grunge_r_texture, 1);
+// @ts-ignore
+screen_texture_effect.uniforms.textureG(grunge_g_texture, 2);
+// @ts-ignore
+screen_texture_effect.uniforms.textureB(grunge_b_texture, 3);
+// @ts-ignore
+Shaku.gfx.useEffect(null);
 
 function addSteer(steer: number[], fn: (dir: Vector2) => number) {
     for (let k = 0; k < CONFIG.steer_resolution; k++) {
@@ -512,7 +537,7 @@ function rayEnemiesCollision(pos: Vector2, dir: Vector2, ray_dist: number, ray_r
 function step() {
     // start a new frame and clear screen
     Shaku.startFrame();
-    Shaku.gfx!.clear(Shaku.utils.Color.cornflowerblue);
+    Shaku.gfx!.clear(COLOR_BACKGROUND);
 
     if (Shaku.input.pressed("escape")) {
         paused = !paused;
@@ -664,6 +689,7 @@ function step() {
 
     enemies.forEach(x => x.update(dt));
     bullets.forEach(x => x.update(dt));
+    Shaku.gfx.useEffect(screen_texture_effect);
     enemies.forEach(x => x.draw());
     bullets.forEach(x => x.draw());
 
@@ -677,6 +703,8 @@ function step() {
     player_pos_history.insertFront(player_pos.clone());
     Shaku.gfx!.drawSprite(player_sprite);
     Shaku.gfx!.drawSprite(cursor_sprite);
+    // @ts-ignore
+    Shaku.gfx.useEffect(null);
 
     time_since_dash += Shaku.gameTime.delta;
 
