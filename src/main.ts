@@ -10,6 +10,7 @@ import Perlin from "shaku/lib/utils/perlin";
 
 import Deque from "double-ended-queue";
 import { ScreenTextureEffect } from "./screen_texture_effect";
+import { BackgroundEffect } from "./background_effect";
 
 const CONFIG = {
     player_speed: 355, // 2.25s to cross the 800px screen
@@ -125,6 +126,14 @@ enemy_hit_trail_sprite.color = new Color(1, 1, 1, .125);
 let bullet_texture = await Shaku.assets.loadTexture("imgs/bullet.png", { generateMipMaps: true });
 bullet_texture.filter = TextureFilterModes.Linear;
 
+let background_texture = await Shaku.assets.loadTexture("imgs/background.png", { generateMipMaps: true });
+background_texture.filter = TextureFilterModes.Linear;
+background_texture.wrapMode = TextureWrapModes.Repeat;
+
+const FULL_SCREEN_SPRITE = new Sprite(Shaku.gfx.whiteTexture);
+FULL_SCREEN_SPRITE.origin = Vector2.zero;
+FULL_SCREEN_SPRITE.size = Shaku.gfx.getCanvasSize();
+
 let grunge_r_texture = await Shaku.assets.loadTexture("imgs/grunge_r.png", { generateMipMaps: true });
 grunge_r_texture.filter = TextureFilterModes.Linear;
 grunge_r_texture.wrapMode = TextureWrapModes.Repeat;
@@ -143,6 +152,15 @@ screen_texture_effect.uniforms.textureR(grunge_r_texture, 1);
 screen_texture_effect.uniforms.textureG(grunge_g_texture, 2);
 // @ts-ignore
 screen_texture_effect.uniforms.textureB(grunge_b_texture, 3);
+// @ts-ignore
+Shaku.gfx.useEffect(null);
+
+const background_effect = Shaku.gfx.createEffect(BackgroundEffect);
+Shaku.gfx.useEffect(background_effect);
+// @ts-ignore
+background_effect.uniforms["u_texture"](background_texture, 4);
+// @ts-ignore
+background_effect.uniforms["u_aspect_ratio"](FULL_SCREEN_SPRITE.size.x / FULL_SCREEN_SPRITE.size.y);
 // @ts-ignore
 Shaku.gfx.useEffect(null);
 
@@ -538,6 +556,13 @@ function step() {
     // start a new frame and clear screen
     Shaku.startFrame();
     Shaku.gfx!.clear(COLOR_BACKGROUND);
+
+    Shaku.gfx.useEffect(background_effect);
+    // @ts-ignore
+    background_effect.uniforms.u_time(Shaku.gameTime.elapsed);
+    Shaku.gfx.drawSprite(FULL_SCREEN_SPRITE);
+    // @ts-ignore
+    Shaku.gfx.useEffect(null);
 
     if (Shaku.input.pressed("escape")) {
         paused = !paused;
