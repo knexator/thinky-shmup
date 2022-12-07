@@ -1,1 +1,1 @@
-butler push .\dist knexator/shaku_game:html 
+butler push .\dist knexator/thinky-shmup:html 

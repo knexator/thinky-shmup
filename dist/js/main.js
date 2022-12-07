@@ -10825,8 +10825,16 @@ vec2 pong(vec2 value, float pong_value) {
 
 void main(void) {
 
-    // Normalized pixel coordinates (from 0 to 1)
-    vec2 uv = v_texCoord * 1.0;
+    // Normalized pixel coordinates (from -1 to 1 on vertical axis, -ratio to ratio on horizontal)
+    vec2 uv = v_texCoord;
+
+    // size of game area
+    vec2 size = vec2(1.333333 - .2, .8);
+    float radius = 0.08;
+    float thickness = 0.15;
+    float d = length(max(abs(uv),size) - size) - radius;
+    float border = smoothstep(0.55, 0.45, abs(d / thickness) * 5.0);
+
     float noise1 = simplex3d(vec3(uv * 1.0, u_time * 1.1)) * clamp(u_time - .3, 0.0, 1.0);
     float noise2 = simplex3d(vec3(u_time * 1.0, uv * 0.9)) * clamp(u_time - .3, 0.0, 1.0);
     float noise3 = simplex3d(vec3(uv.y * .9, u_time * 1.0, uv.x * .9)) * clamp(u_time - .3, 0.0, 1.0);
@@ -10839,9 +10847,10 @@ void main(void) {
     float thing1 = mix(sampled.r, sampled.g, smoothstep(.1, .7, noise1));
     float thing2 = mix(sampled.b, 0.1, smoothstep(.1, .7, noise2));
     float thing3 = mix(thing1, thing2, smoothstep(.1, .7, noise3));
-    FragColor = vec4(thing3,thing3,thing3, 1.0);
+    vec3 result = vec3(thing3,thing3-.025,thing3+.025);
+    FragColor = vec4(result + border * .8, 1.0);
     // FragColor = vec4(total, 1.0);
-
+    // FragColor = vec4(border, border, border, 1.0);
 
     // Output to screen
     // FragColor = vec4(mix(vec3(.1843, .3098, .3098), vec3(.149, .2471, .2471), noise), 1.0);
@@ -10884,7 +10893,7 @@ var CONFIG = {
   tail_frames: 20,
   dash_dist: 200,
   player_turn_speed_radians: 3,
-  enemy_radius: 20,
+  enemy_radius: 25,
   enemy_throwback_dist: 50,
   enemy_throwback_speed: 700,
   enemy_second_hit_dist: 120,
@@ -10899,7 +10908,7 @@ var CONFIG = {
   grab_dist: 20,
   ray_radius: 10,
   dash_hit_duration: 0.25,
-  player_radius: 20,
+  player_radius: 25,
   dash_dir_override: 5,
   screen_shake_size: 33,
   screen_shake_speed: 21,
@@ -10942,11 +10951,11 @@ gui.add(CONFIG, "hit_slowdown", 0, 1);
 gui.add(CONFIG, "debug_steer", 0, 1);
 gui.add(CONFIG, "bullet_speed", 0, 1e3);
 gui.add(CONFIG, "turret_delay", 0, 10);
+gui.hide();
 import_shaku.default.input.setTargetElement(() => import_shaku.default.gfx.canvas);
 await import_shaku.default.init([import_shaku.default.assets, import_shaku.default.sfx, import_shaku.default.gfx, import_shaku.default.input]);
 document.body.appendChild(import_shaku.default.gfx.canvas);
-import_shaku.default.gfx.setResolution(800, 600, true);
-import_shaku.default.gfx.centerCanvas();
+import_shaku.default.gfx.maximizeCanvasSize(false, false);
 import_shaku.default.startFrame();
 import_shaku.default.gfx.clear(import_shaku.default.utils.Color.cornflowerblue);
 import_shaku.default.endFrame();
@@ -10959,7 +10968,6 @@ var player_texture = await import_shaku.default.assets.loadTexture("imgs/player.
 player_texture.filter = import_gfx2.TextureFilterModes.Linear;
 var player_sprite = new import_shaku.default.gfx.Sprite(player_texture);
 player_sprite.size.mulSelf(CONFIG.player_radius / 50);
-player_sprite.color = import_color.default.black;
 var player_tail_sprite = new import_shaku.default.gfx.Sprite(player_texture);
 player_tail_sprite.color = new import_color.default(0, 0, 0, 0.5);
 var enemy_texture = await import_shaku.default.assets.loadTexture("imgs/enemy.png", { generateMipMaps: true });
@@ -11239,6 +11247,13 @@ enemies.push(new EightTurretEnemy(import_shaku.default.gfx.getCanvasSize().mulSe
 enemies.push(new DelayedEnemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 enemies.push(new SpiralTurretEnemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 enemies.push(new SpiralTrailEnemy(import_shaku.default.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+addEventListener("resize", (event) => {
+  import_shaku.default.gfx.maximizeCanvasSize(false, false);
+  FULL_SCREEN_SPRITE.size = import_shaku.default.gfx.getCanvasSize();
+  import_shaku.default.gfx.useEffect(background_effect);
+  background_effect.uniforms["u_aspect_ratio"](FULL_SCREEN_SPRITE.size.x / FULL_SCREEN_SPRITE.size.y);
+  import_shaku.default.gfx.useEffect(null);
+});
 function rayEnemiesCollision(pos, dir, ray_dist, ray_radius, exclude) {
   let best_dist = Infinity;
   let best_enemy = -1;
@@ -11372,7 +11387,6 @@ function step() {
   player_sprite.position.copy(player_pos);
   enemies.forEach((x) => x.update(dt));
   bullets.forEach((x) => x.update(dt));
-  import_shaku.default.gfx.useEffect(screen_texture_effect);
   enemies.forEach((x) => x.draw());
   bullets.forEach((x) => x.draw());
   player_tail_sprite.size.copy(player_sprite.size);

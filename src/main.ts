@@ -23,7 +23,7 @@ const CONFIG = {
     tail_frames: 20,
     dash_dist: 200,
     player_turn_speed_radians: 3,
-    enemy_radius: 20,
+    enemy_radius: 25,
     enemy_throwback_dist: 50,
     enemy_throwback_speed: 700,
     enemy_second_hit_dist: 120, // a bit more than throwback dist, to account for speed
@@ -38,7 +38,7 @@ const CONFIG = {
     grab_dist: 20,
     ray_radius: 10,
     dash_hit_duration: 0.25, // freeze screen for extra effect
-    player_radius: 20,
+    player_radius: 25,
     dash_dir_override: 5,
     screen_shake_size: 33,
     screen_shake_speed: 21,
@@ -81,6 +81,7 @@ gui.add(CONFIG, "hit_slowdown", 0, 1);
 gui.add(CONFIG, "debug_steer", 0, 1);
 gui.add(CONFIG, "bullet_speed", 0, 1000);
 gui.add(CONFIG, "turret_delay", 0, 10);
+gui.hide();
 
 // init shaku
 Shaku.input.setTargetElement(() => Shaku.gfx.canvas)
@@ -88,9 +89,9 @@ await Shaku.init([Shaku.assets, Shaku.sfx, Shaku.gfx, Shaku.input]);
 
 // add shaku's canvas to document and set resolution to 800x600
 document.body.appendChild(Shaku!.gfx!.canvas);
-Shaku.gfx!.setResolution(800, 600, true);
-Shaku.gfx!.centerCanvas();
-// Shaku.gfx!.maximizeCanvasSize(false, false);
+// Shaku.gfx!.setResolution(800, 600, true);
+// Shaku.gfx!.centerCanvas();
+Shaku.gfx!.maximizeCanvasSize(false, false);
 // const SCALING = Shaku.gfx.getCanvasSize().x / 800;
 
 
@@ -112,7 +113,7 @@ let player_texture = await Shaku.assets.loadTexture("imgs/player.png", { generat
 player_texture.filter = TextureFilterModes.Linear;
 let player_sprite = new Shaku.gfx!.Sprite(player_texture);
 player_sprite.size.mulSelf(CONFIG.player_radius / 50);
-player_sprite.color = Color.black;
+// player_sprite.color = Color.black;
 let player_tail_sprite = new Shaku.gfx!.Sprite(player_texture);
 player_tail_sprite.color = new Color(0, 0, 0, .5);
 
@@ -509,6 +510,17 @@ enemies.push(new DelayedEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), M
 enemies.push(new SpiralTurretEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 enemies.push(new SpiralTrailEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 
+addEventListener("resize", (event) => {
+    Shaku.gfx!.maximizeCanvasSize(false, false);
+    FULL_SCREEN_SPRITE.size = Shaku.gfx.getCanvasSize();
+    Shaku.gfx.useEffect(background_effect);
+    // @ts-ignore
+    background_effect.uniforms["u_aspect_ratio"](FULL_SCREEN_SPRITE.size.x / FULL_SCREEN_SPRITE.size.y);
+    // @ts-ignore
+    Shaku.gfx.useEffect(null);
+});
+
+
 interface CollisionInfo {
     hit_dist: number,
     hit_enemy: Enemy,
@@ -556,6 +568,10 @@ function step() {
     // start a new frame and clear screen
     Shaku.startFrame();
     Shaku.gfx!.clear(COLOR_BACKGROUND);
+
+    // if (Shaku.input.mousePressed()) {
+    //     Shaku.gfx.canvas.requestFullscreen();
+    // }
 
     Shaku.gfx.useEffect(background_effect);
     // @ts-ignore
@@ -714,7 +730,7 @@ function step() {
 
     enemies.forEach(x => x.update(dt));
     bullets.forEach(x => x.update(dt));
-    Shaku.gfx.useEffect(screen_texture_effect);
+    // Shaku.gfx.useEffect(screen_texture_effect);
     enemies.forEach(x => x.draw());
     bullets.forEach(x => x.draw());
 

@@ -98,8 +98,16 @@ vec2 pong(vec2 value, float pong_value) {
 
 void main(void) {
 
-    // Normalized pixel coordinates (from 0 to 1)
-    vec2 uv = v_texCoord * 1.0;
+    // Normalized pixel coordinates (from -1 to 1 on vertical axis, -ratio to ratio on horizontal)
+    vec2 uv = v_texCoord;
+
+    // size of game area
+    vec2 size = vec2(1.333333 - .2, .8);
+    float radius = 0.08;
+    float thickness = 0.15;
+    float d = length(max(abs(uv),size) - size) - radius;
+    float border = smoothstep(0.55, 0.45, abs(d / thickness) * 5.0);
+
     float noise1 = simplex3d(vec3(uv * 1.0, u_time * 1.1)) * clamp(u_time - .3, 0.0, 1.0);
     float noise2 = simplex3d(vec3(u_time * 1.0, uv * 0.9)) * clamp(u_time - .3, 0.0, 1.0);
     float noise3 = simplex3d(vec3(uv.y * .9, u_time * 1.0, uv.x * .9)) * clamp(u_time - .3, 0.0, 1.0);
@@ -112,9 +120,10 @@ void main(void) {
     float thing1 = mix(sampled.r, sampled.g, smoothstep(.1, .7, noise1));
     float thing2 = mix(sampled.b, 0.1, smoothstep(.1, .7, noise2));
     float thing3 = mix(thing1, thing2, smoothstep(.1, .7, noise3));
-    FragColor = vec4(thing3,thing3,thing3, 1.0);
+    vec3 result = vec3(thing3,thing3-.025,thing3+.025);
+    FragColor = vec4(result + border * .8, 1.0);
     // FragColor = vec4(total, 1.0);
-
+    // FragColor = vec4(border, border, border, 1.0);
 
     // Output to screen
     // FragColor = vec4(mix(vec3(.1843, .3098, .3098), vec3(.149, .2471, .2471), noise), 1.0);
