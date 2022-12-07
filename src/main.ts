@@ -123,7 +123,7 @@ let player_sprite = new Shaku.gfx!.Sprite(player_texture);
 player_sprite.size.mulSelf(CONFIG.player_radius / 50);
 // player_sprite.color = Color.black;
 let player_tail_sprite = new Shaku.gfx!.Sprite(player_texture);
-player_tail_sprite.color = new Color(0, 0, 0, .5);
+player_tail_sprite.color = new Color(1, 1, 1, .5);
 
 let enemy_atlas_texture = await Shaku.assets.loadTexture("imgs/enemies.png", { generateMipMaps: true });
 enemy_atlas_texture.filter = TextureFilterModes.Linear;

@@ -10970,7 +10970,7 @@ player_texture.filter = import_gfx2.TextureFilterModes.Linear;
 var player_sprite = new import_shaku.default.gfx.Sprite(player_texture);
 player_sprite.size.mulSelf(CONFIG.player_radius / 50);
 var player_tail_sprite = new import_shaku.default.gfx.Sprite(player_texture);
-player_tail_sprite.color = new import_color.default(0, 0, 0, 0.5);
+player_tail_sprite.color = new import_color.default(1, 1, 1, 0.5);
 var enemy_atlas_texture = await import_shaku.default.assets.loadTexture("imgs/enemies.png", { generateMipMaps: true });
 enemy_atlas_texture.filter = import_gfx2.TextureFilterModes.Linear;
 var enemy_texture = await import_shaku.default.assets.loadTexture("imgs/enemy.png", { generateMipMaps: true });
