@@ -11293,7 +11293,6 @@ function step() {
     if (cur_hit.merge) {
       t = remap(t, 0.9, 0, 0, 1);
       t = Math.floor(t * 9);
-      console.log(t);
       if (t >= 0) {
         cur_hit.particle.setSourceFromSpritesheet(
           new import_vector2.default(t % 3, Math.floor(t / 3)),
