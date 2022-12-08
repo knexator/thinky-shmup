@@ -103,7 +103,7 @@ void main(void) {
 
     // size of game area
     vec2 size = vec2(1.333333 - .2, .8);
-    float radius = 0.08;
+    float radius = 0.065;
     float thickness = 0.15;
     float d = length(max(abs(uv),size) - size) - radius;
     float border = smoothstep(0.55, 0.45, abs(d / thickness) * 5.0);

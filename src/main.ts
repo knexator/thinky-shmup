@@ -8,6 +8,7 @@ import Sprite from "shaku/lib/gfx/sprite";
 import Circle from "shaku/lib/utils/circle";
 import Perlin from "shaku/lib/utils/perlin";
 import Rectangle from "shaku/lib/utils/rectangle";
+import Animator from "shaku/lib/utils/animator";
 
 import Deque from "double-ended-queue";
 import { ScreenTextureEffect } from "./screen_texture_effect";
@@ -50,6 +51,7 @@ const CONFIG = {
     bullet_radius: 30,
     turret_delay: 3,
     delayed_rot_speed: 1,
+    spawn_time: .2,
 };
 let gui = new dat.GUI({});
 gui.remember(CONFIG);
@@ -261,7 +263,7 @@ const rules: [Ship, Ship][][] = [
     [[Ship.M, Ship.YC], [Ship.MM, Ship.P2]],
 
     [[Ship.P1, Ship.P1], [Ship.P2, Ship.P2]],
-    [[Ship.P1, Ship.P2], [Ship.P3, Ship.P3]],
+    // [[Ship.P1, Ship.P2], [Ship.P3, Ship.P3]],
 ];
 
 function combine(a: Ship, b: Ship): [Ship, Ship] | null {
@@ -280,6 +282,24 @@ function combine(a: Ship, b: Ship): [Ship, Ship] | null {
 
 function sameShips(a: [Ship, Ship], b: [Ship, Ship]) {
     return (a[0] === b[0] && a[1] === b[1]) || (a[0] === b[1] && a[1] === b[0]);
+}
+
+function setSpriteToType(spr: Sprite, x: Ship) {
+    let n = [
+        Ship.M, Ship.Y, Ship.C,
+        Ship.MM, Ship.YY, Ship.CC,
+        Ship.YC, Ship.CM, Ship.MY,
+        Ship.P1, Ship.P2, Ship.P3,
+    ].indexOf(x);
+    spr.setSourceFromSpritesheet(
+        new Vector2(n % 3, Math.floor(n / 3)),
+        new Vector2(3, 4),
+        0, true
+    );
+    spr.size.mulSelf(CONFIG.enemy_radius / 50);
+    if (x === Ship.P1) {
+        spr.size.mulSelf(1.3);
+    }
 }
 
 class Enemy {
@@ -304,21 +324,7 @@ class Enemy {
 
     setType(x: Ship) {
         this.ship_type = x;
-        let n = [
-            Ship.M, Ship.Y, Ship.C,
-            Ship.MM, Ship.YY, Ship.CC,
-            Ship.YC, Ship.CM, Ship.MY,
-            Ship.P1, Ship.P2, Ship.P3,
-        ].indexOf(x);
-        this.sprite.setSourceFromSpritesheet(
-            new Vector2(n % 3, Math.floor(n / 3)),
-            new Vector2(3, 4),
-            0, true
-        );
-        this.sprite.size.mulSelf(CONFIG.enemy_radius / 50);
-        if (x === Ship.P1) {
-            this.sprite.size.mulSelf(1.3);
-        }
+        setSpriteToType(this.sprite, x);
     }
 
     steer_chaseDir(target_dir: Vector2, acc: number) {
@@ -575,6 +581,7 @@ let player_pos = Shaku.gfx.getCanvasSize().mulSelf(.5);
 let player_dir = Vector2.right;
 let player_vel = Vector2.right.mulSelf(CONFIG.player_speed);
 
+let time_until_store_pos = 0;
 let player_pos_history = new Deque(60);
 while (player_pos_history.length < CONFIG.tail_frames) {
     player_pos_history.insertFront(player_pos.clone());
@@ -584,10 +591,21 @@ let screen_shake_noise = new Perlin(Math.random());
 
 let enemies: Enemy[] = [];
 let bullets: Bullet[] = [];
+let spawn_sprites: Sprite[] = [];
 // for (let k = 0; k < 4; k++) {
 // enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 // }
-let initial_types = [Ship.C, Ship.M, Ship.Y, Ship.C, Ship.M, Ship.Y];
+// let initial_types = [Ship.C, Ship.C, Ship.MM];
+let initial_types = [Ship.C, Ship.C, Ship.YY, Ship.YY, Ship.YY, Ship.YY, Ship.YY, Ship.YY];
+// let target_types = [Ship.CC, Ship.M, Ship.M];
+let target_types = [Ship.CC, Ship.P1, Ship.YY, Ship.YY, Ship.YY, Ship.YY, Ship.YY, Ship.YY];
+let target_types_sprites = target_types.map((x, index) => {
+    let res = new Shaku.gfx!.Sprite(enemy_atlas_texture);
+    setSpriteToType(res, x);
+    res.position.set(board_area.x + board_area.width + CONFIG.enemy_radius * 3, board_area.y + (index + .5) * CONFIG.enemy_radius * 3);
+    return res;
+});
+let outdated_types_sprites: Sprite[] = [];
 for (let k = 0; k < initial_types.length; k++) {
     let cur = new Enemy(new Vector2(Math.random(), Math.random()).mulSelf(board_area.getSize()).addSelf(board_area.getTopLeft()));
     cur.setType(initial_types[k]);
@@ -604,7 +622,25 @@ for (let k = 0; k < initial_types.length; k++) {
 // enemies.push(new SpiralTurretEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 // enemies.push(new SpiralTrailEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
 
+let level_ended = false;
+function updateCompletedTargets() {
+    level_ended = true;
+    let existing = enemies.map(x => x.ship_type);
+    console.log("existing: ", existing);
+    target_types_sprites.forEach((x, k) => {
+        let existing_index = existing.indexOf(target_types[k]);
+        if (existing_index !== -1) {
+            existing.splice(existing_index, 1);
+            x.color = new Color(1, 1, 1, .5);
+        } else {
+            x.color = new Color(1, 1, 1, 1);
+            level_ended = false;
+        }
+    });
+}
+
 addEventListener("resize", (event) => {
+    // todo: resize many other things
     Shaku.gfx!.maximizeCanvasSize(false, false);
     FULL_SCREEN_SPRITE.size = Shaku.gfx.getCanvasSize();
     Shaku.gfx.useEffect(background_effect);
@@ -614,6 +650,33 @@ addEventListener("resize", (event) => {
     Shaku.gfx.useEffect(null);
 });
 
+function spawnEnemy(x: Ship, delay: number) {
+    setTimeout(() => {
+        let pos = new Vector2(Math.random(), Math.random()).mulSelf(board_area.getSize()).addSelf(board_area.getTopLeft());
+        let spawn_sprite = new Sprite(merge_particle_texture);
+        spawn_sprite.position.copy(pos);
+        spawn_sprites.push(spawn_sprite);
+
+        let spawned = false;
+        // @ts-ignore
+        new Animator(spawn_sprite).duration(CONFIG.spawn_time).onUpdate(t => {
+            let n = Math.floor(t * 9);
+            spawn_sprite.setSourceFromSpritesheet(
+                new Vector2(n % 3, Math.floor(n / 3)), new Vector2(3, 3), 0, true
+            );
+            spawn_sprite.size.mulSelf(1.7);
+            if (!spawned && t > .5) {
+                spawned = true;
+                console.log("spawned");
+                let enemy = new Enemy(pos);
+                enemy.setType(x);
+                enemies.push(enemy);
+            }
+        }).play().then(() => {
+            spawn_sprites = spawn_sprites.filter(y => y !== spawn_sprite);
+        });
+    }, delay * 1000);
+}
 
 interface CollisionInfo {
     hit_dist: number,
@@ -681,6 +744,7 @@ function step() {
     }
 
     if (paused) {
+        target_types_sprites.forEach(x => Shaku.gfx.drawSprite(x));
         bullets.forEach(x => x.draw());
         enemies.forEach(x => x.draw());
         Shaku.gfx!.drawSprite(player_sprite);
@@ -717,8 +781,76 @@ function step() {
                     enemies.push(new_enemy_2);
                     cur_hit.hitted = new_enemy_1;
                     cur_hit.hitter = new_enemy_2;
+                    updateCompletedTargets();
+                    if (level_ended) {
+                        let delays: number[] = [];
+                        for (let i = 0; i < enemies.length; i++) {
+                            delays.push(i * .2);
+                        }
+                        shuffle(delays);
+                        let pending: boolean[] = Array(target_types.length).fill(true);
+                        let target_type_index: number[] = [];
+                        enemies.forEach(x => {
+                            let res = 0;
+                            while (target_types[res] !== x.ship_type || !pending[res]) {
+                                res++;
+                            }
+                            pending[res] = false;
+                            target_type_index.push(res);
+                        });
+                        enemies.forEach((x, k) => {
+                            let p0 = x.pos.clone();
+                            let pE = target_types_sprites[target_type_index[k]].position as Vector2;
+                            let p1 = Vector2.lerp(p0, pE, .5);
+                            p1.addSelf(Vector2.random.mulSelf(200));
+                            // @ts-ignore
+                            new Animator(x).onUpdate(t => {
+                                // x.pos.copy(Vector2.lerp(p0, pE, t));
+                                x.pos.copy(bezier3(t, p0, p1, pE));
+                            }).duration(.75).smoothDamp(true).delay(delays[k]).play().then(() => {
+                                enemies = enemies.filter(y => y !== x);
+                                target_types_sprites[target_type_index[k]].color = Color.white;
+                                console.log("end");
+                            });
+                            // let asdf = new Animator(x).to({
+                            //     "pos.x": target_types_sprites[k].position.x,
+                            //     "pos.y": target_types_sprites[k].position.y,
+                            //     // @ts-ignore
+                            // }).duration(.75).smoothDamp(true).delay(delays[k]).onUpdate(console.log).play();
+                        });
+
+                        setTimeout(() => {
+                            // old types go out of the way
+                            outdated_types_sprites = [...target_types_sprites];
+                            console.log("start");
+                            outdated_types_sprites.forEach((x, k) => {
+                                new Animator(x).to(
+                                    { "position.y": Shaku.gfx.getCanvasSize().y + CONFIG.enemy_radius * 3 }
+                                ).duration(.75 - k * .04).delay((outdated_types_sprites.length - k) * .1).smoothDamp(true).play();
+                            });
+
+                            // drop in new enemies
+                            initial_types.forEach((x, k) => {
+                                spawnEnemy(x, k * .1);
+                            })
+
+                            // drop in new types
+                            target_types_sprites = target_types.map((x, k) => {
+                                let res = new Shaku.gfx!.Sprite(enemy_atlas_texture);
+                                setSpriteToType(res, x);
+                                res.position.set(board_area.x + board_area.width + CONFIG.enemy_radius * 3, - CONFIG.enemy_radius * 3);
+                                new Animator(res).to(
+                                    { "position.y": board_area.y + (k + .5) * CONFIG.enemy_radius * 3 }
+                                ).duration(.75 - k * .02).delay(1.00 + (target_types.length - k) * .03).smoothDamp(true).play();
+                                return res;
+                            });
+                            updateCompletedTargets();
+                        }, (enemies.length - 1) * 200 + 500);
+                    }
                 } else {
                     cur_hit.merge = false;
+                    cur_hit.hitted.vel.addSelf(cur_hit.hitted_new_vel);
+                    cur_hit.hitter.vel.addSelf(cur_hit.hitter_new_vel);
                 }
             }
         }
@@ -731,13 +863,15 @@ function step() {
 
         if (cur_hit.time_until_end <= 0) {
             Shaku.gfx.setCameraOrthographic(Vector2.zero);
-            cur_hit.hitted.vel.addSelf(cur_hit.hitted_new_vel);
-            cur_hit.hitter.vel.addSelf(cur_hit.hitter_new_vel);
+            if (cur_hit.merge) {
+                cur_hit.hitted.vel.addSelf(cur_hit.hitted_new_vel);
+                cur_hit.hitter.vel.addSelf(cur_hit.hitter_new_vel);
+            }
             cur_hit = null;
         }
     } else {
         // Starting a dash?
-        if (time_since_dash >= CONFIG.dash_cooldown) {
+        if (time_since_dash >= CONFIG.dash_cooldown && !level_ended) {
             last_dash_pos.copy(player_pos);
             // last_dash_dir = player_dir.clone();
             last_dash_dir = (cursor_sprite.position as Vector2).sub(player_pos);
@@ -829,8 +963,8 @@ function step() {
     }
 
     // Keyboard controls
-    let dx = (Shaku.input.down("d") ? 1 : 0) - (Shaku.input.down("a") ? 1 : 0);
-    let dy = (Shaku.input.down("s") ? 1 : 0) - (Shaku.input.down("w") ? 1 : 0);
+    let dx = ((Shaku.input.down("d") || Shaku.input.down("right")) ? 1 : 0) - ((Shaku.input.down("a") || Shaku.input.down("left")) ? 1 : 0);
+    let dy = ((Shaku.input.down("s") || Shaku.input.down("down")) ? 1 : 0) - ((Shaku.input.down("w") || Shaku.input.down("up")) ? 1 : 0);
     // player_vel.set(dx, dy);    
     // player_vel.mulSelf(CONFIG.player_speed);
     player_vel.addSelf(CONFIG.player_acc * dx * dt, CONFIG.player_acc * dy * dt);
@@ -865,11 +999,16 @@ function step() {
     player_pos.addSelf(player_vel.mul(dt));
     player_sprite.position.copy(player_pos);
 
-    enemies.forEach(x => x.update(dt));
+    if (!level_ended) {
+        enemies.forEach(x => x.update(dt));
+    }
     bullets.forEach(x => x.update(dt));
     // Shaku.gfx.useEffect(screen_texture_effect);
+    target_types_sprites.forEach(x => Shaku.gfx.drawSprite(x));
+    outdated_types_sprites.forEach(x => Shaku.gfx.drawSprite(x));
     enemies.forEach(x => x.draw());
     bullets.forEach(x => x.draw());
+    spawn_sprites.forEach(x => Shaku.gfx.drawSprite(x));
     if (cur_hit !== null) {
         let t = cur_hit.time_until_end / CONFIG.dash_hit_duration;
         if (cur_hit.merge) {
@@ -900,8 +1039,13 @@ function step() {
         player_tail_sprite.size.mulSelf(.85);
         Shaku.gfx!.drawSprite(player_tail_sprite);
     }
-    player_pos_history.removeBack();
-    player_pos_history.insertFront(player_pos.clone());
+    time_until_store_pos -= dt;
+    if (time_until_store_pos <= 0) {
+        player_pos_history.removeBack();
+        player_pos_history.insertFront(player_pos.clone());
+        time_until_store_pos = 0.01;
+    }
+
     Shaku.gfx!.drawSprite(player_sprite);
     Shaku.gfx!.drawSprite(cursor_sprite);
     // @ts-ignore
@@ -1031,6 +1175,49 @@ function argmin(vals: number[]) {
         }
     }
     return best_index;
+}
+
+// from https://stackoverflow.com/questions/2450954/how-to-randomize-shuffle-a-javascript-array
+function shuffle<T>(array: T[]) {
+    let currentIndex = array.length, randomIndex;
+
+    // While there remain elements to shuffle.
+    while (currentIndex != 0) {
+
+        // Pick a remaining element.
+        randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex--;
+
+        // And swap it with the current element.
+        [array[currentIndex], array[randomIndex]] = [
+            array[randomIndex], array[currentIndex]];
+    }
+
+    return array;
+}
+
+// from https://stackoverflow.com/questions/6711707/draw-a-quadratic-b%C3%A9zier-curve-through-three-given-points
+function bezier3(t: number, p0: Vector2, p1: Vector2, p2: Vector2) {
+    let result = p2.mul(t * t);
+    result.addSelf(p1.mul(2 * t * (1 - t)));
+    result.addSelf(p0.mul((1 - t) * (1 - t)));
+    return result;
+}
+
+// from https://stackoverflow.com/questions/16227300/how-to-draw-bezier-curves-with-native-javascript-code-without-ctx-beziercurveto
+function bezier4(t: number, p0: Vector2, p1: Vector2, p2: Vector2, p3: Vector2) {
+    var cX = 3 * (p1.x - p0.x),
+        bX = 3 * (p2.x - p1.x) - cX,
+        aX = p3.x - p0.x - cX - bX;
+
+    var cY = 3 * (p1.y - p0.y),
+        bY = 3 * (p2.y - p1.y) - cY,
+        aY = p3.y - p0.y - cY - bY;
+
+    var x = (aX * Math.pow(t, 3)) + (bX * Math.pow(t, 2)) + (cX * t) + p0.x;
+    var y = (aY * Math.pow(t, 3)) + (bY * Math.pow(t, 2)) + (cY * t) + p0.y;
+
+    return new Vector2(x, y);
 }
 
 document.getElementById("loading")!.style.opacity = "0";
