@@ -11059,8 +11059,7 @@ var rules = [
   [[1 /* M */, 7 /* MM */], [5 /* YC */, 10 /* P2 */]],
   [[0 /* C */, 4 /* MY */], [6 /* CC */, 10 /* P2 */]],
   [[2 /* Y */, 3 /* CM */], [8 /* YY */, 10 /* P2 */]],
-  [[1 /* M */, 5 /* YC */], [7 /* MM */, 10 /* P2 */]],
-  [[9 /* P1 */, 9 /* P1 */], [10 /* P2 */, 10 /* P2 */]]
+  [[1 /* M */, 5 /* YC */], [7 /* MM */, 10 /* P2 */]]
 ];
 function combine(a, b) {
   let input = [a, b];
@@ -11208,23 +11207,26 @@ var screen_shake_noise = new import_perlin.default(Math.random());
 var enemies = [];
 var bullets = [];
 var spawn_sprites = [];
-var initial_types = [0 /* C */, 0 /* C */, 8 /* YY */, 8 /* YY */, 8 /* YY */, 8 /* YY */, 8 /* YY */, 8 /* YY */];
-var target_types = [6 /* CC */, 9 /* P1 */, 8 /* YY */, 8 /* YY */, 8 /* YY */, 8 /* YY */, 8 /* YY */, 8 /* YY */];
-var target_types_sprites = target_types.map((x, index) => {
-  let res = new import_shaku.default.gfx.Sprite(enemy_atlas_texture);
-  setSpriteToType(res, x);
-  res.position.set(board_area.x + board_area.width + CONFIG.enemy_radius * 3, board_area.y + (index + 0.5) * CONFIG.enemy_radius * 3);
-  return res;
-});
+var cur_level_n = 0;
+var levels = [
+  [[0 /* C */, 0 /* C */, 7 /* MM */], [6 /* CC */, 1 /* M */, 1 /* M */]],
+  [[7 /* MM */, 8 /* YY */, 9 /* P1 */, 9 /* P1 */], [4 /* MY */, 4 /* MY */, 9 /* P1 */, 9 /* P1 */]],
+  [[0 /* C */, 0 /* C */, 0 /* C */], [2 /* Y */, 1 /* M */, 10 /* P2 */]],
+  [[0 /* C */, 2 /* Y */, 1 /* M */], [2 /* Y */, 2 /* Y */, 10 /* P2 */]],
+  [[1 /* M */, 1 /* M */, 10 /* P2 */], [0 /* C */, 0 /* C */, 10 /* P2 */]],
+  [[0 /* C */, 0 /* C */, 0 /* C */, 2 /* Y */], [1 /* M */, 1 /* M */, 0 /* C */, 2 /* Y */]],
+  [[2 /* Y */, 2 /* Y */, 1 /* M */, 1 /* M */, 1 /* M */], [2 /* Y */, 2 /* Y */, 0 /* C */, 0 /* C */, 1 /* M */]],
+  [[2 /* Y */, 2 /* Y */, 2 /* Y */, 2 /* Y */], [0 /* C */, 0 /* C */, 0 /* C */, 0 /* C */]],
+  [[6 /* CC */, 8 /* YY */, 7 /* MM */, 9 /* P1 */, 9 /* P1 */], [6 /* CC */, 6 /* CC */, 6 /* CC */, 9 /* P1 */, 9 /* P1 */]],
+  [[0 /* C */, 0 /* C */, 1 /* M */, 1 /* M */, 2 /* Y */], [2 /* Y */, 2 /* Y */, 2 /* Y */, 2 /* Y */, 2 /* Y */]]
+];
+var initial_types = [];
+var target_types = [];
+var target_types_sprites = [];
 var outdated_types_sprites = [];
-for (let k = 0; k < initial_types.length; k++) {
-  let cur = new Enemy(new import_vector2.default(Math.random(), Math.random()).mulSelf(board_area.getSize()).addSelf(board_area.getTopLeft()));
-  cur.setType(initial_types[k]);
-  enemies.push(cur);
-}
 var level_ended = false;
 function updateCompletedTargets() {
-  level_ended = true;
+  level_ended = enemies.length === target_types_sprites.length;
   let existing = enemies.map((x) => x.ship_type);
   console.log("existing: ", existing);
   target_types_sprites.forEach((x, k) => {
@@ -11273,6 +11275,34 @@ function spawnEnemy(x, delay) {
     });
   }, delay * 1e3);
 }
+function loadLevel(n) {
+  level_ended = false;
+  let also_end_prev_level = target_types_sprites.length > 0;
+  if (also_end_prev_level) {
+    outdated_types_sprites = [...target_types_sprites];
+    outdated_types_sprites.forEach((x, k) => {
+      new import_animator.default(x).to(
+        { "position.y": import_shaku.default.gfx.getCanvasSize().y + CONFIG.enemy_radius * 3 }
+      ).duration(0.75 - k * 0.04).delay((outdated_types_sprites.length - k) * 0.1).smoothDamp(true).play();
+    });
+  }
+  console.log("also_end_prev_level: ", also_end_prev_level);
+  initial_types = levels[n][0];
+  target_types = levels[n][1];
+  initial_types.forEach((x, k) => {
+    spawnEnemy(x, k * 0.1);
+  });
+  target_types_sprites = target_types.map((x, k) => {
+    let res = new import_shaku.default.gfx.Sprite(enemy_atlas_texture);
+    setSpriteToType(res, x);
+    res.position.set(board_area.x + board_area.width + CONFIG.enemy_radius * 3, -CONFIG.enemy_radius * 3);
+    new import_animator.default(res).to(
+      { "position.y": board_area.y + (k + 0.5) * CONFIG.enemy_radius * 3 }
+    ).duration(0.75 - k * 0.02).delay((also_end_prev_level ? 1 : 0) + (target_types.length - k) * 0.03).smoothDamp(true).play();
+    return res;
+  });
+}
+loadLevel(cur_level_n);
 function rayEnemiesCollision(pos, dir, ray_dist, ray_radius, exclude) {
   let best_dist = Infinity;
   let best_enemy = -1;
@@ -11381,27 +11411,12 @@ function step() {
               });
             });
             setTimeout(() => {
-              outdated_types_sprites = [...target_types_sprites];
-              console.log("start");
-              outdated_types_sprites.forEach((x, k) => {
-                new import_animator.default(x).to(
-                  { "position.y": import_shaku.default.gfx.getCanvasSize().y + CONFIG.enemy_radius * 3 }
-                ).duration(0.75 - k * 0.04).delay((outdated_types_sprites.length - k) * 0.1).smoothDamp(true).play();
-              });
-              initial_types.forEach((x, k) => {
-                spawnEnemy(x, k * 0.1);
-              });
-              target_types_sprites = target_types.map((x, k) => {
-                let res = new import_shaku.default.gfx.Sprite(enemy_atlas_texture);
-                setSpriteToType(res, x);
-                res.position.set(board_area.x + board_area.width + CONFIG.enemy_radius * 3, -CONFIG.enemy_radius * 3);
-                new import_animator.default(res).to(
-                  { "position.y": board_area.y + (k + 0.5) * CONFIG.enemy_radius * 3 }
-                ).duration(0.75 - k * 0.02).delay(1 + (target_types.length - k) * 0.03).smoothDamp(true).play();
-                return res;
-              });
-              updateCompletedTargets();
-            }, (enemies.length - 1) * 200 + 500);
+              cur_level_n += 1;
+              if (cur_level_n < levels.length) {
+                loadLevel(cur_level_n);
+              } else {
+              }
+            }, (enemies.length - 1) * 200 + 760);
           }
         } else {
           cur_hit.merge = false;

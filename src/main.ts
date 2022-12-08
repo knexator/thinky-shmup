@@ -262,7 +262,7 @@ const rules: [Ship, Ship][][] = [
     [[Ship.Y, Ship.CM], [Ship.YY, Ship.P2]],
     [[Ship.M, Ship.YC], [Ship.MM, Ship.P2]],
 
-    [[Ship.P1, Ship.P1], [Ship.P2, Ship.P2]],
+    // [[Ship.P1, Ship.P1], [Ship.P2, Ship.P2]],
     // [[Ship.P1, Ship.P2], [Ship.P3, Ship.P3]],
 ];
 
@@ -592,39 +592,41 @@ let screen_shake_noise = new Perlin(Math.random());
 let enemies: Enemy[] = [];
 let bullets: Bullet[] = [];
 let spawn_sprites: Sprite[] = [];
-// for (let k = 0; k < 4; k++) {
-// enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-// }
-// let initial_types = [Ship.C, Ship.C, Ship.MM];
-let initial_types = [Ship.C, Ship.C, Ship.YY, Ship.YY, Ship.YY, Ship.YY, Ship.YY, Ship.YY];
-// let target_types = [Ship.CC, Ship.M, Ship.M];
-let target_types = [Ship.CC, Ship.P1, Ship.YY, Ship.YY, Ship.YY, Ship.YY, Ship.YY, Ship.YY];
-let target_types_sprites = target_types.map((x, index) => {
-    let res = new Shaku.gfx!.Sprite(enemy_atlas_texture);
-    setSpriteToType(res, x);
-    res.position.set(board_area.x + board_area.width + CONFIG.enemy_radius * 3, board_area.y + (index + .5) * CONFIG.enemy_radius * 3);
-    return res;
-});
+
+let cur_level_n = 0;
+const levels = [
+    // [[Ship.C, Ship.C, Ship.M, Ship.M, Ship.Y, Ship.Y], [Ship.CC, Ship.M, Ship.M]],
+    [[Ship.C, Ship.C, Ship.MM], [Ship.CC, Ship.M, Ship.M]], // 0: learn about splitting 
+    [[Ship.MM, Ship.YY, Ship.P1, Ship.P1], [Ship.MY, Ship.MY, Ship.P1, Ship.P1]], // 1: more splitting
+    [[Ship.C, Ship.C, Ship.C], [Ship.Y, Ship.M, Ship.P2]], // 2: learn about 3 equal
+    [[Ship.C, Ship.Y, Ship.M], [Ship.Y, Ship.Y, Ship.P2]], // 3: learn about 3 different
+    [[Ship.M, Ship.M, Ship.P2], [Ship.C, Ship.C, Ship.P2]], // 4: relearn about 3 different, just in case
+    [[Ship.C, Ship.C, Ship.C, Ship.Y], [Ship.M, Ship.M, Ship.C, Ship.Y]], // 5: start with 3 equal
+    [[Ship.Y, Ship.Y, Ship.M, Ship.M, Ship.M], [Ship.Y, Ship.Y, Ship.C, Ship.C, Ship.M]], // 6: start with 3 equal
+    [[Ship.Y, Ship.Y, Ship.Y, Ship.Y], [Ship.C, Ship.C, Ship.C, Ship.C]], // 7: start with 3 equal, then separate to change
+    [[Ship.CC, Ship.YY, Ship.MM, Ship.P1, Ship.P1], [Ship.CC, Ship.CC, Ship.CC, Ship.P1, Ship.P1]], // 8: join two to get an extra P1
+    [[Ship.C, Ship.C, Ship.M, Ship.M, Ship.Y], [Ship.Y, Ship.Y, Ship.Y, Ship.Y, Ship.Y]], // 9: start with 3 different (the cool one)
+    // [[Ship.C, Ship.C, Ship.YY, Ship.YY, Ship.YY, Ship.YY, Ship.YY, Ship.YY], [Ship.CC, Ship.P1, Ship.YY, Ship.YY, Ship.YY, Ship.YY, Ship.YY, Ship.YY]],
+]
+let initial_types: Ship[] = [];
+let target_types: Ship[] = [];
+let target_types_sprites: Sprite[] = [];
+// target_types.map((x, index) => {
+//     let res = new Shaku.gfx!.Sprite(enemy_atlas_texture);
+//     setSpriteToType(res, x);
+//     res.position.set(board_area.x + board_area.width + CONFIG.enemy_radius * 3, board_area.y + (index + .5) * CONFIG.enemy_radius * 3);
+//     return res;
+// });
 let outdated_types_sprites: Sprite[] = [];
-for (let k = 0; k < initial_types.length; k++) {
-    let cur = new Enemy(new Vector2(Math.random(), Math.random()).mulSelf(board_area.getSize()).addSelf(board_area.getTopLeft()));
-    cur.setType(initial_types[k]);
-    enemies.push(cur);
-}
-// enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random() * .2 + .4, Math.random())));
-// enemies.push(new Enemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random() * .2 + .4, Math.random())));
-// enemies.push(new SpiralMoveEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-// // enemies.push(new SpiralMoveEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-// enemies.push(new EightTurretEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-// // enemies.push(new EightTurretEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-// enemies.push(new DelayedEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-// // enemies.push(new DelayedEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-// enemies.push(new SpiralTurretEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
-// enemies.push(new SpiralTrailEnemy(Shaku.gfx.getCanvasSize().mulSelf(Math.random(), Math.random())));
+// for (let k = 0; k < initial_types.length; k++) {
+//     let cur = new Enemy(new Vector2(Math.random(), Math.random()).mulSelf(board_area.getSize()).addSelf(board_area.getTopLeft()));
+//     cur.setType(initial_types[k]);
+//     enemies.push(cur);
+// }
 
 let level_ended = false;
 function updateCompletedTargets() {
-    level_ended = true;
+    level_ended = enemies.length === target_types_sprites.length;
     let existing = enemies.map(x => x.ship_type);
     console.log("existing: ", existing);
     target_types_sprites.forEach((x, k) => {
@@ -677,6 +679,46 @@ function spawnEnemy(x: Ship, delay: number) {
         });
     }, delay * 1000);
 }
+
+function loadLevel(n: number) {
+    level_ended = false;
+
+    let also_end_prev_level = target_types_sprites.length > 0;
+    if (also_end_prev_level) {
+        // old types go out of the way
+        outdated_types_sprites = [...target_types_sprites];
+        outdated_types_sprites.forEach((x, k) => {
+            new Animator(x).to(
+                { "position.y": Shaku.gfx.getCanvasSize().y + CONFIG.enemy_radius * 3 }
+            ).duration(.75 - k * .04).delay((outdated_types_sprites.length - k) * .1).smoothDamp(true).play();
+        });
+    }
+
+    console.log("also_end_prev_level: ", also_end_prev_level);
+
+    initial_types = levels[n][0];
+    target_types = levels[n][1];
+
+    // drop in new enemies
+    initial_types.forEach((x, k) => {
+        spawnEnemy(x, k * .1);
+    })
+
+    // drop in new types
+    target_types_sprites = target_types.map((x, k) => {
+        let res = new Shaku.gfx!.Sprite(enemy_atlas_texture);
+        setSpriteToType(res, x);
+        // res.color = new Color(1, 1, 1, 1);
+        res.position.set(board_area.x + board_area.width + CONFIG.enemy_radius * 3, - CONFIG.enemy_radius * 3);
+        new Animator(res).to(
+            { "position.y": board_area.y + (k + .5) * CONFIG.enemy_radius * 3 }
+        ).duration(.75 - k * .02).delay((also_end_prev_level ? 1.00 : 0.00) + (target_types.length - k) * .03).smoothDamp(true).play();
+        return res;
+    });
+    // updateCompletedTargets();
+}
+
+loadLevel(cur_level_n);
 
 interface CollisionInfo {
     hit_dist: number,
@@ -820,32 +862,13 @@ function step() {
                         });
 
                         setTimeout(() => {
-                            // old types go out of the way
-                            outdated_types_sprites = [...target_types_sprites];
-                            console.log("start");
-                            outdated_types_sprites.forEach((x, k) => {
-                                new Animator(x).to(
-                                    { "position.y": Shaku.gfx.getCanvasSize().y + CONFIG.enemy_radius * 3 }
-                                ).duration(.75 - k * .04).delay((outdated_types_sprites.length - k) * .1).smoothDamp(true).play();
-                            });
-
-                            // drop in new enemies
-                            initial_types.forEach((x, k) => {
-                                spawnEnemy(x, k * .1);
-                            })
-
-                            // drop in new types
-                            target_types_sprites = target_types.map((x, k) => {
-                                let res = new Shaku.gfx!.Sprite(enemy_atlas_texture);
-                                setSpriteToType(res, x);
-                                res.position.set(board_area.x + board_area.width + CONFIG.enemy_radius * 3, - CONFIG.enemy_radius * 3);
-                                new Animator(res).to(
-                                    { "position.y": board_area.y + (k + .5) * CONFIG.enemy_radius * 3 }
-                                ).duration(.75 - k * .02).delay(1.00 + (target_types.length - k) * .03).smoothDamp(true).play();
-                                return res;
-                            });
-                            updateCompletedTargets();
-                        }, (enemies.length - 1) * 200 + 500);
+                            cur_level_n += 1;
+                            if (cur_level_n < levels.length) {
+                                loadLevel(cur_level_n);
+                            } else {
+                                // todo: victory screen
+                            }
+                        }, (enemies.length - 1) * 200 + 760);
                     }
                 } else {
                     cur_hit.merge = false;
