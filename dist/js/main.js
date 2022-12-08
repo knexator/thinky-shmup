@@ -10957,9 +10957,6 @@ import_shaku.default.input.setTargetElement(() => import_shaku.default.gfx.canva
 await import_shaku.default.init([import_shaku.default.assets, import_shaku.default.sfx, import_shaku.default.gfx, import_shaku.default.input]);
 document.body.appendChild(import_shaku.default.gfx.canvas);
 import_shaku.default.gfx.maximizeCanvasSize(false, false);
-import_shaku.default.startFrame();
-import_shaku.default.gfx.clear(import_shaku.default.utils.Color.cornflowerblue);
-import_shaku.default.endFrame();
 var paused = false;
 var COLOR_BACKGROUND = new import_color.default(0.2, 0.195, 0.205);
 var cursor_texture = await loadAsciiTexture(`0`, [import_color.default.white]);
@@ -11094,6 +11091,9 @@ var Enemy = class {
       true
     );
     this.sprite.size.mulSelf(CONFIG.enemy_radius / 50);
+    if (x === 9 /* P1 */) {
+      this.sprite.size.mulSelf(1.3);
+    }
   }
   steer_chaseDir(target_dir, acc) {
     addSteer(this.steer, (v) => {
@@ -11449,6 +11449,7 @@ function argmax(vals) {
   }
   return best_index;
 }
+document.getElementById("loading").style.opacity = "0";
 step();
 /**
  * A utility to hold gametime.

@@ -89,17 +89,17 @@ Shaku.input.setTargetElement(() => Shaku.gfx.canvas)
 await Shaku.init([Shaku.assets, Shaku.sfx, Shaku.gfx, Shaku.input]);
 
 // add shaku's canvas to document and set resolution to 800x600
-document.body.appendChild(Shaku!.gfx!.canvas);
+document.body.appendChild(Shaku.gfx.canvas);
 // Shaku.gfx!.setResolution(800, 600, true);
 // Shaku.gfx!.centerCanvas();
-Shaku.gfx!.maximizeCanvasSize(false, false);
+Shaku.gfx.maximizeCanvasSize(false, false);
 // const SCALING = Shaku.gfx.getCanvasSize().x / 800;
-
+// Shaku.gfx.canvas.style.display = "none";
 
 // Loading Screen
-Shaku.startFrame();
-Shaku.gfx!.clear(Shaku.utils.Color.cornflowerblue);
-Shaku.endFrame();
+// Shaku.startFrame();
+// Shaku.gfx!.clear(Shaku.utils.Color.cornflowerblue);
+// Shaku.endFrame();
 
 let paused = false;
 
@@ -316,6 +316,9 @@ class Enemy {
             0, true
         );
         this.sprite.size.mulSelf(CONFIG.enemy_radius / 50);
+        if (x === Ship.P1) {
+            this.sprite.size.mulSelf(1.3);
+        }
     }
 
     steer_chaseDir(target_dir: Vector2, acc: number) {
@@ -1030,6 +1033,8 @@ function argmin(vals: number[]) {
     return best_index;
 }
 
+document.getElementById("loading")!.style.opacity = "0";
+// Shaku.gfx.canvas.style.display = "initial";
 // start main loop
 step();
 
