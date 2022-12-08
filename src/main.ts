@@ -11,7 +11,7 @@ import Rectangle from "shaku/lib/utils/rectangle";
 import Animator from "shaku/lib/utils/animator";
 
 import Deque from "double-ended-queue";
-import { ScreenTextureEffect } from "./screen_texture_effect";
+// import { ScreenTextureEffect } from "./screen_texture_effect";
 import { BackgroundEffect } from "./background_effect";
 
 const CONFIG = {
@@ -52,6 +52,7 @@ const CONFIG = {
     turret_delay: 3,
     delayed_rot_speed: 1,
     spawn_time: .2,
+    stun_time: .8,
 };
 let gui = new dat.GUI({});
 gui.remember(CONFIG);
@@ -159,26 +160,26 @@ let board_h = FULL_SCREEN_SPRITE.size.y * .8;
 let board_w = FULL_SCREEN_SPRITE.size.y * (4 / 3 - .2);
 let board_area = new Rectangle(FULL_SCREEN_SPRITE.size.x / 2 - board_w / 2, FULL_SCREEN_SPRITE.size.y / 2 - board_h / 2, board_w, board_h);
 
-let grunge_r_texture = await Shaku.assets.loadTexture("imgs/grunge_r.png", { generateMipMaps: true });
-grunge_r_texture.filter = TextureFilterModes.Linear;
-grunge_r_texture.wrapMode = TextureWrapModes.Repeat;
-let grunge_g_texture = await Shaku.assets.loadTexture("imgs/grunge_g.png", { generateMipMaps: true });
-grunge_g_texture.filter = TextureFilterModes.Linear;
-grunge_g_texture.wrapMode = TextureWrapModes.Repeat;
-let grunge_b_texture = await Shaku.assets.loadTexture("imgs/grunge_b.png", { generateMipMaps: true });
-grunge_b_texture.filter = TextureFilterModes.Linear;
-grunge_b_texture.wrapMode = TextureWrapModes.Repeat;
+// let grunge_r_texture = await Shaku.assets.loadTexture("imgs/grunge_r.png", { generateMipMaps: true });
+// grunge_r_texture.filter = TextureFilterModes.Linear;
+// grunge_r_texture.wrapMode = TextureWrapModes.Repeat;
+// let grunge_g_texture = await Shaku.assets.loadTexture("imgs/grunge_g.png", { generateMipMaps: true });
+// grunge_g_texture.filter = TextureFilterModes.Linear;
+// grunge_g_texture.wrapMode = TextureWrapModes.Repeat;
+// let grunge_b_texture = await Shaku.assets.loadTexture("imgs/grunge_b.png", { generateMipMaps: true });
+// grunge_b_texture.filter = TextureFilterModes.Linear;
+// grunge_b_texture.wrapMode = TextureWrapModes.Repeat;
 
-let screen_texture_effect = Shaku.gfx.createEffect(ScreenTextureEffect);
-Shaku.gfx.useEffect(screen_texture_effect);
-// @ts-ignore
-screen_texture_effect.uniforms.textureR(grunge_r_texture, 1);
-// @ts-ignore
-screen_texture_effect.uniforms.textureG(grunge_g_texture, 2);
-// @ts-ignore
-screen_texture_effect.uniforms.textureB(grunge_b_texture, 3);
-// @ts-ignore
-Shaku.gfx.useEffect(null);
+// let screen_texture_effect = Shaku.gfx.createEffect(ScreenTextureEffect);
+// Shaku.gfx.useEffect(screen_texture_effect);
+// // @ts-ignore
+// screen_texture_effect.uniforms.textureR(grunge_r_texture, 1);
+// // @ts-ignore
+// screen_texture_effect.uniforms.textureG(grunge_g_texture, 2);
+// // @ts-ignore
+// screen_texture_effect.uniforms.textureB(grunge_b_texture, 3);
+// // @ts-ignore
+// Shaku.gfx.useEffect(null);
 
 const background_effect = Shaku.gfx.createEffect(BackgroundEffect);
 Shaku.gfx.useEffect(background_effect);
@@ -308,6 +309,7 @@ class Enemy {
     public dir: Vector2
     public steer: number[]
     public ship_type: Ship
+    public flying: boolean
     constructor(
         public pos: Vector2,
     ) {
@@ -320,6 +322,7 @@ class Enemy {
         this.sprite.position = pos;
         this.ship_type = Ship.C;
         this.setType(this.ship_type);
+        this.flying = false;
     }
 
     setType(x: Ship) {
@@ -334,7 +337,11 @@ class Enemy {
     }
 
     steer_chasePlayer(acc: number) {
-        this.steer_chaseDir(player_pos.sub(this.pos).normalizeSelf(), acc);
+        let player_dir = player_pos.sub(this.pos).normalizeSelf()
+        if (player_stun_time_remaining > 0) {
+            player_dir.mulSelf(-.25);
+        }
+        this.steer_chaseDir(player_dir, acc);
     }
 
     steer_hoverAndDodge() {
@@ -580,6 +587,7 @@ let cur_hit: {
 let player_pos = Shaku.gfx.getCanvasSize().mulSelf(.5);
 let player_dir = Vector2.right;
 let player_vel = Vector2.right.mulSelf(CONFIG.player_speed);
+let player_stun_time_remaining = 0;
 
 let time_until_store_pos = 0;
 let player_pos_history = new Deque(60);
@@ -786,6 +794,7 @@ function step() {
     }
 
     if (paused) {
+        // todo: pause menu, level select
         target_types_sprites.forEach(x => Shaku.gfx.drawSprite(x));
         bullets.forEach(x => x.draw());
         enemies.forEach(x => x.draw());
@@ -841,14 +850,17 @@ function step() {
                             target_type_index.push(res);
                         });
                         enemies.forEach((x, k) => {
+                            x.flying = true;
                             let p0 = x.pos.clone();
                             let pE = target_types_sprites[target_type_index[k]].position as Vector2;
                             let p1 = Vector2.lerp(p0, pE, .5);
                             p1.addSelf(Vector2.random.mulSelf(200));
+                            let original_size = x.sprite.size.clone();
                             // @ts-ignore
                             new Animator(x).onUpdate(t => {
                                 // x.pos.copy(Vector2.lerp(p0, pE, t));
                                 x.pos.copy(bezier3(t, p0, p1, pE));
+                                x.sprite.size = original_size.mul(1 - t * (1 - t) * (1 - t) * 3);
                             }).duration(.75).smoothDamp(true).delay(delays[k]).play().then(() => {
                                 enemies = enemies.filter(y => y !== x);
                                 target_types_sprites[target_type_index[k]].color = Color.white;
@@ -894,7 +906,7 @@ function step() {
         }
     } else {
         // Starting a dash?
-        if (time_since_dash >= CONFIG.dash_cooldown && !level_ended) {
+        if (time_since_dash >= CONFIG.dash_cooldown && !level_ended && player_stun_time_remaining === 0) {
             last_dash_pos.copy(player_pos);
             // last_dash_dir = player_dir.clone();
             last_dash_dir = (cursor_sprite.position as Vector2).sub(player_pos);
@@ -985,16 +997,20 @@ function step() {
         }
     }
 
-    // Keyboard controls
-    let dx = ((Shaku.input.down("d") || Shaku.input.down("right")) ? 1 : 0) - ((Shaku.input.down("a") || Shaku.input.down("left")) ? 1 : 0);
-    let dy = ((Shaku.input.down("s") || Shaku.input.down("down")) ? 1 : 0) - ((Shaku.input.down("w") || Shaku.input.down("up")) ? 1 : 0);
-    // player_vel.set(dx, dy);    
-    // player_vel.mulSelf(CONFIG.player_speed);
-    player_vel.addSelf(CONFIG.player_acc * dx * dt, CONFIG.player_acc * dy * dt);
-    player_vel.mulSelf(1 / (1 + (dt * CONFIG.player_friction)));
-    if (player_vel.length > 1) {
-        player_dir = player_vel.normalized();
-        player_sprite.rotation = player_dir.getRadians();
+    if (player_stun_time_remaining === 0) {
+        // Keyboard controls
+        let dx = ((Shaku.input.down("d") || Shaku.input.down("right")) ? 1 : 0) - ((Shaku.input.down("a") || Shaku.input.down("left")) ? 1 : 0);
+        let dy = ((Shaku.input.down("s") || Shaku.input.down("down")) ? 1 : 0) - ((Shaku.input.down("w") || Shaku.input.down("up")) ? 1 : 0);
+        // player_vel.set(dx, dy);    
+        // player_vel.mulSelf(CONFIG.player_speed);
+        player_vel.addSelf(CONFIG.player_acc * dx * dt, CONFIG.player_acc * dy * dt);
+        player_vel.mulSelf(1 / (1 + (dt * CONFIG.player_friction)));
+        if (player_vel.length > 1) {
+            player_dir = player_vel.normalized();
+            player_sprite.rotation = player_dir.getRadians();
+        }
+    } else {
+        player_vel.mulSelf(1 / (1 + (dt * CONFIG.player_friction * .35)));
     }
     // Tank controls
     // let delta_rot = ((Shaku.input.down("d") ? 1 : 0) - (Shaku.input.down("a") ? 1 : 0)) * CONFIG.player_turn_speed_radians;
@@ -1053,6 +1069,23 @@ function step() {
             //     new Vector2(n % 3, Math.floor(n / 3)), new Vector2(3, 2), 0, true
             // );
             // Shaku.gfx.drawSprite(cur_hit.particle);
+        }
+    } else if (player_stun_time_remaining === 0) {
+        // maybe stun player
+        let colliding_index = enemies.findIndex(x => !x.flying && Vector2.distance(player_pos, x.pos) < (CONFIG.enemy_radius + CONFIG.player_radius));
+        if (colliding_index !== -1) {
+            player_stun_time_remaining = CONFIG.stun_time;
+        }
+    }
+
+
+    if (player_stun_time_remaining > 0) {
+        player_stun_time_remaining -= dt;
+        if (player_stun_time_remaining <= 0) {
+            player_sprite.color = Color.white;
+            player_stun_time_remaining = 0;
+        } else {
+            player_sprite.color = (Math.floor(player_stun_time_remaining * 7) % 2 === 0) ? Color.white : Color.gray;
         }
     }
 
