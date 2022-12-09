@@ -124,8 +124,8 @@ let cursor_sprite = new Shaku.gfx!.Sprite(cursor_texture);
 let enemy_atlas_texture = await Shaku.assets.loadTexture("imgs/enemies.png", { generateMipMaps: true });
 enemy_atlas_texture.filter = TextureFilterModes.Linear;
 
-let player_texture = await Shaku.assets.loadTexture("imgs/player.png", { generateMipMaps: true });
-player_texture.filter = TextureFilterModes.Linear;
+// let player_texture = await Shaku.assets.loadTexture("imgs/player.png", { generateMipMaps: true });
+// player_texture.filter = TextureFilterModes.Linear;
 let player_sprite = new Shaku.gfx!.Sprite(enemy_atlas_texture);
 player_sprite.setSourceFromSpritesheet(new Vector2(2, 3), new Vector2(3, 4), 0, true);
 player_sprite.size.mulSelf(CONFIG.player_radius / 50);
@@ -135,18 +135,18 @@ player_tail_texture.filter = TextureFilterModes.Linear;
 let player_tail_sprite = new Shaku.gfx!.Sprite(player_tail_texture);
 player_tail_sprite.color = new Color(1, 1, 1, .5);
 
-let enemy_texture = await Shaku.assets.loadTexture("imgs/enemy.png", { generateMipMaps: true });
-enemy_texture.filter = TextureFilterModes.Linear;
+// let enemy_texture = await Shaku.assets.loadTexture("imgs/enemy.png", { generateMipMaps: true });
+// enemy_texture.filter = TextureFilterModes.Linear;
 
-let enemy_hit_trail_sprite = new Shaku.gfx!.Sprite(enemy_texture);
-enemy_hit_trail_sprite.size.mulSelf(CONFIG.enemy_radius / 50);
-enemy_hit_trail_sprite.color = new Color(1, 1, 1, .125);
+// let enemy_hit_trail_sprite = new Shaku.gfx!.Sprite(enemy_texture);
+// enemy_hit_trail_sprite.size.mulSelf(CONFIG.enemy_radius / 50);
+// enemy_hit_trail_sprite.color = new Color(1, 1, 1, .125);
 
 let bullet_texture = await Shaku.assets.loadTexture("imgs/bullet.png", { generateMipMaps: true });
 bullet_texture.filter = TextureFilterModes.Linear;
 
-let crash_particle_texture = await Shaku.assets.loadTexture("imgs/crash_particle.png", { generateMipMaps: true });
-crash_particle_texture.filter = TextureFilterModes.Linear;
+// let crash_particle_texture = await Shaku.assets.loadTexture("imgs/crash_particle.png", { generateMipMaps: true });
+// crash_particle_texture.filter = TextureFilterModes.Linear;
 
 let merge_particle_texture = await Shaku.assets.loadTexture("imgs/merge_particle.png", { generateMipMaps: true });
 merge_particle_texture.filter = TextureFilterModes.Linear;
@@ -589,6 +589,7 @@ let last_dash_dist = 0;
 let last_enemy_dash_pos = Vector2.zero;
 let last_enemy_dash_dir = Vector2.zero;
 let last_enemy_dash_dist = 0;
+let last_dash_hit_enemy: Enemy | null = null;
 
 let cur_hit: {
     hitter: Enemy,
@@ -908,10 +909,15 @@ function step() {
         }
 
         // draw enemy hit trail
-        for (let k = 0; k < last_enemy_dash_dist; k += 4) {
-            enemy_hit_trail_sprite.position.copy(last_enemy_dash_pos.add(last_enemy_dash_dir.mul(k)));
-            Shaku.gfx!.drawSprite(enemy_hit_trail_sprite);
+        let original_size = cur_hit.hitter.sprite.size.clone();
+        cur_hit.hitter.sprite.size.copy(player_sprite.size.mul(.85));
+        for (let k = last_enemy_dash_dist * .5; k < last_enemy_dash_dist * 1.25; k += 4) {
+            cur_hit.hitter.sprite.color = new Color(.65, .65, .65, clamp(k / (1.5 * last_enemy_dash_dist) - .2 * (time_since_dash / CONFIG.dash_duration), 0, 1));
+            cur_hit.hitter.sprite.position.copy(last_enemy_dash_pos.add(last_enemy_dash_dir.mul(k)));
+            Shaku.gfx!.drawSprite(cur_hit.hitter.sprite);
         }
+        cur_hit.hitter.sprite.size.copy(original_size);
+        cur_hit.hitter.sprite.color = Color.white;
 
         if (cur_hit.time_until_end <= 0) {
             Shaku.gfx.setCameraOrthographic(Vector2.zero);
@@ -960,8 +966,10 @@ function step() {
 
             if (Shaku.input.mousePressed()) {
                 time_since_dash = 0;
+                last_dash_hit_enemy = null;
                 if (first_hit !== null) {
-                    // actual collision         
+                    // actual collision
+                    last_dash_hit_enemy = first_hit.hit_enemy;
 
                     // mix billiard direction with original direction
                     let second_ray_dir = first_hit.hit_enemy.pos.sub(ray_end).normalizeSelf();
@@ -1005,6 +1013,7 @@ function step() {
                     // first_hit.hit_enemy.vel.addSelf(second_ray_dir.mul(CONFIG.enemy_throwback_speed));
 
                     if (second_hit === null || wall_collision_time < second_hit.hit_dist) {
+
                         if (wall_collision_time < Infinity) {
                             first_hit.hit_enemy.pos.addSelf(second_ray_dir.mul(wall_collision_time));
                             first_hit.hit_enemy.vel.addSelf(second_ray_dir.mul(CONFIG.enemy_throwback_speed * (1 - wall_collision_time / CONFIG.enemy_throwback_dist)).mulSelf(wall_vector_modify));
@@ -1047,7 +1056,8 @@ function step() {
 
         if (time_since_dash < CONFIG.dash_duration) {
             // draw dash trail
-            player_tail_sprite.size.copy(player_sprite.size.mul(.85 * (1. - clamp(time_since_dash / CONFIG.dash_duration, 0, .5))));
+            // player_tail_sprite.size.copy(player_sprite.size.mul(.85 * (1. - clamp(time_since_dash / CONFIG.dash_duration, 0, .5))));
+            player_tail_sprite.size.copy(player_sprite.size.mul(.35));
             for (let k = 0; k < last_dash_dist; k += 4) {
                 player_tail_sprite.color = new Color(.65, .65, .65, clamp(k / last_dash_dist - .2 * (time_since_dash / CONFIG.dash_duration), 0, 1));
                 player_tail_sprite.position.copy(last_dash_pos.add(last_dash_dir.mul(k)));

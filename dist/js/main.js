@@ -10932,8 +10932,6 @@ cursor_texture.filter = import_gfx.TextureFilterModes.Linear;
 var cursor_sprite = new import_shaku.default.gfx.Sprite(cursor_texture);
 var enemy_atlas_texture = await import_shaku.default.assets.loadTexture("imgs/enemies.png", { generateMipMaps: true });
 enemy_atlas_texture.filter = import_gfx.TextureFilterModes.Linear;
-var player_texture = await import_shaku.default.assets.loadTexture("imgs/player.png", { generateMipMaps: true });
-player_texture.filter = import_gfx.TextureFilterModes.Linear;
 var player_sprite = new import_shaku.default.gfx.Sprite(enemy_atlas_texture);
 player_sprite.setSourceFromSpritesheet(new import_vector2.default(2, 3), new import_vector2.default(3, 4), 0, true);
 player_sprite.size.mulSelf(CONFIG.player_radius / 50);
@@ -10941,15 +10939,8 @@ var player_tail_texture = await import_shaku.default.assets.loadTexture("imgs/tr
 player_tail_texture.filter = import_gfx.TextureFilterModes.Linear;
 var player_tail_sprite = new import_shaku.default.gfx.Sprite(player_tail_texture);
 player_tail_sprite.color = new import_color.default(1, 1, 1, 0.5);
-var enemy_texture = await import_shaku.default.assets.loadTexture("imgs/enemy.png", { generateMipMaps: true });
-enemy_texture.filter = import_gfx.TextureFilterModes.Linear;
-var enemy_hit_trail_sprite = new import_shaku.default.gfx.Sprite(enemy_texture);
-enemy_hit_trail_sprite.size.mulSelf(CONFIG.enemy_radius / 50);
-enemy_hit_trail_sprite.color = new import_color.default(1, 1, 1, 0.125);
 var bullet_texture = await import_shaku.default.assets.loadTexture("imgs/bullet.png", { generateMipMaps: true });
 bullet_texture.filter = import_gfx.TextureFilterModes.Linear;
-var crash_particle_texture = await import_shaku.default.assets.loadTexture("imgs/crash_particle.png", { generateMipMaps: true });
-crash_particle_texture.filter = import_gfx.TextureFilterModes.Linear;
 var merge_particle_texture = await import_shaku.default.assets.loadTexture("imgs/merge_particle.png", { generateMipMaps: true });
 merge_particle_texture.filter = import_gfx.TextureFilterModes.Linear;
 var background_texture = await import_shaku.default.assets.loadTexture("imgs/background.png", { generateMipMaps: true });
@@ -11141,6 +11132,7 @@ var last_dash_dist = 0;
 var last_enemy_dash_pos = import_vector2.default.zero;
 var last_enemy_dash_dir = import_vector2.default.zero;
 var last_enemy_dash_dist = 0;
+var last_dash_hit_enemy = null;
 var cur_hit = null;
 var player_pos = import_shaku.default.gfx.getCanvasSize().mulSelf(0.5);
 var player_dir = import_vector2.default.right;
@@ -11350,10 +11342,10 @@ function step() {
               let pE = target_types_sprites[target_type_index[k]].position;
               let p1 = import_vector2.default.lerp(p0, pE, 0.5);
               p1.addSelf(import_vector2.default.random.mulSelf(200));
-              let original_size = x.sprite.size.clone();
+              let original_size2 = x.sprite.size.clone();
               new import_animator.default(x).onUpdate((t) => {
                 x.pos.copy(bezier3(t, p0, p1, pE));
-                x.sprite.size = original_size.mul(1 - t * (1 - t) * (1 - t) * 3);
+                x.sprite.size = original_size2.mul(1 - t * (1 - t) * (1 - t) * 3);
               }).duration(0.75).smoothDamp(true).delay(delays[k]).play().then(() => {
                 enemies = enemies.filter((y) => y !== x);
                 target_types_sprites[target_type_index[k]].color = import_color.default.white;
@@ -11375,10 +11367,15 @@ function step() {
         }
       }
     }
-    for (let k = 0; k < last_enemy_dash_dist; k += 4) {
-      enemy_hit_trail_sprite.position.copy(last_enemy_dash_pos.add(last_enemy_dash_dir.mul(k)));
-      import_shaku.default.gfx.drawSprite(enemy_hit_trail_sprite);
+    let original_size = cur_hit.hitter.sprite.size.clone();
+    cur_hit.hitter.sprite.size.copy(player_sprite.size.mul(0.85));
+    for (let k = last_enemy_dash_dist * 0.5; k < last_enemy_dash_dist * 1.25; k += 4) {
+      cur_hit.hitter.sprite.color = new import_color.default(0.65, 0.65, 0.65, clamp(k / (1.5 * last_enemy_dash_dist) - 0.2 * (time_since_dash / CONFIG.dash_duration), 0, 1));
+      cur_hit.hitter.sprite.position.copy(last_enemy_dash_pos.add(last_enemy_dash_dir.mul(k)));
+      import_shaku.default.gfx.drawSprite(cur_hit.hitter.sprite);
     }
+    cur_hit.hitter.sprite.size.copy(original_size);
+    cur_hit.hitter.sprite.color = import_color.default.white;
     if (cur_hit.time_until_end <= 0) {
       import_shaku.default.gfx.setCameraOrthographic(import_vector2.default.zero);
       if (cur_hit.merge) {
@@ -11409,7 +11406,9 @@ function step() {
       }
       if (import_shaku.default.input.mousePressed()) {
         time_since_dash = 0;
+        last_dash_hit_enemy = null;
         if (first_hit !== null) {
+          last_dash_hit_enemy = first_hit.hit_enemy;
           let second_ray_dir = first_hit.hit_enemy.pos.sub(ray_end).normalizeSelf();
           second_ray_dir = second_ray_dir.add(last_dash_dir.mul(CONFIG.dash_dir_override)).normalizeSelf();
           last_enemy_dash_pos.copy(first_hit.hit_enemy.pos);
@@ -11478,7 +11477,7 @@ function step() {
       }
     }
     if (time_since_dash < CONFIG.dash_duration) {
-      player_tail_sprite.size.copy(player_sprite.size.mul(0.85 * (1 - clamp(time_since_dash / CONFIG.dash_duration, 0, 0.5))));
+      player_tail_sprite.size.copy(player_sprite.size.mul(0.35));
       for (let k = 0; k < last_dash_dist; k += 4) {
         player_tail_sprite.color = new import_color.default(0.65, 0.65, 0.65, clamp(k / last_dash_dist - 0.2 * (time_since_dash / CONFIG.dash_duration), 0, 1));
         player_tail_sprite.position.copy(last_dash_pos.add(last_dash_dir.mul(k)));
