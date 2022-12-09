@@ -392,6 +392,19 @@ class Enemy {
         this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
         this.vel.mulSelf(1 / (1 + (dt * CONFIG.enemy_friction)));
         this.pos.addSelf(this.vel.mul(dt));
+        if (this.pos.x < board_area.left) {
+            this.vel.x *= -1;
+            this.pos.x += (board_area.left - this.pos.x) * 2;
+        } else if (this.pos.x > board_area.right) {
+            this.vel.x *= -1;
+            this.pos.x += (board_area.right - this.pos.x) * 2;
+        } else if (this.pos.y < board_area.top) {
+            this.vel.y *= -1;
+            this.pos.y += (board_area.top - this.pos.y) * 2;
+        } else if (this.pos.y > board_area.bottom) {
+            this.vel.y *= -1;
+            this.pos.y += (board_area.bottom - this.pos.y) * 2;
+        }
         if (this.vel.x !== 0 || this.vel.y !== 0) {
             this.dir.copy(this.vel).normalizeSelf();
         }
@@ -941,6 +954,29 @@ function step() {
                     last_enemy_dash_pos.copy(first_hit.hit_enemy.pos);
                     last_enemy_dash_dir.copy(second_ray_dir);
 
+                    let wall_collision_time = Infinity;
+                    let wall_vector_modify = Vector2.one;
+                    let collision_time_left = (board_area.left - first_hit.hit_enemy.pos.x) / second_ray_dir.x;
+                    if (collision_time_left > 0 && collision_time_left <= CONFIG.enemy_throwback_dist) {
+                        wall_collision_time = collision_time_left;
+                        wall_vector_modify = new Vector2(-1, 1);
+                    }
+                    let collision_time_right = (board_area.right - first_hit.hit_enemy.pos.x) / second_ray_dir.x;
+                    if (collision_time_right > 0 && collision_time_right <= CONFIG.enemy_throwback_dist && collision_time_right < wall_collision_time) {
+                        wall_collision_time = collision_time_right;
+                        wall_vector_modify = new Vector2(-1, 1);
+                    }
+                    let collision_time_up = (board_area.top - first_hit.hit_enemy.pos.y) / second_ray_dir.y;
+                    if (collision_time_up > 0 && collision_time_up <= CONFIG.enemy_throwback_dist && collision_time_up < wall_collision_time) {
+                        wall_collision_time = collision_time_up;
+                        wall_vector_modify = new Vector2(1, -1);
+                    }
+                    let collision_time_down = (board_area.bottom - first_hit.hit_enemy.pos.y) / second_ray_dir.y;
+                    if (collision_time_down > 0 && collision_time_down <= CONFIG.enemy_throwback_dist && collision_time_down < wall_collision_time) {
+                        wall_collision_time = collision_time_down;
+                        wall_vector_modify = new Vector2(1, -1);
+                    }
+
                     let second_hit = rayEnemiesCollision(
                         first_hit.hit_enemy.pos,
                         second_ray_dir,
@@ -952,10 +988,16 @@ function step() {
                     // first_hit.hit_enemy.pos.addSelf(second_ray_dir.mul(CONFIG.enemy_throwback_dist));
                     // first_hit.hit_enemy.vel.addSelf(second_ray_dir.mul(CONFIG.enemy_throwback_speed));
 
-                    if (second_hit === null) {
-                        first_hit.hit_enemy.pos.addSelf(second_ray_dir.mul(CONFIG.enemy_throwback_dist));
-                        first_hit.hit_enemy.vel.addSelf(second_ray_dir.mul(CONFIG.enemy_throwback_speed));
-                        last_enemy_dash_dist = CONFIG.enemy_throwback_dist;
+                    if (second_hit === null || wall_collision_time < second_hit.hit_dist) {
+                        if (wall_collision_time < Infinity) {
+                            first_hit.hit_enemy.pos.addSelf(second_ray_dir.mul(wall_collision_time));
+                            first_hit.hit_enemy.vel.addSelf(second_ray_dir.mul(CONFIG.enemy_throwback_speed * (1 - wall_collision_time / CONFIG.enemy_throwback_dist)).mulSelf(wall_vector_modify));
+                            last_enemy_dash_dist = wall_collision_time;
+                        } else {
+                            first_hit.hit_enemy.pos.addSelf(second_ray_dir.mul(CONFIG.enemy_throwback_dist));
+                            first_hit.hit_enemy.vel.addSelf(second_ray_dir.mul(CONFIG.enemy_throwback_speed));
+                            last_enemy_dash_dist = CONFIG.enemy_throwback_dist;
+                        }
                     } else {
                         // let hitter_new_vel = second_ray_dir
                         first_hit.hit_enemy.pos.addSelf(second_ray_dir.mul(second_hit.hit_dist))
@@ -1036,6 +1078,19 @@ function step() {
     // player_vel.normalizeSelf().mulSelf(CONFIG.player_speed);
 
     player_pos.addSelf(player_vel.mul(dt));
+    if (player_pos.x < board_area.left) {
+        player_vel.x *= -1;
+        player_pos.x += (board_area.left - player_pos.x) * 2;
+    } else if (player_pos.x > board_area.right) {
+        player_vel.x *= -1;
+        player_pos.x += (board_area.right - player_pos.x) * 2;
+    } else if (player_pos.y < board_area.top) {
+        player_vel.y *= -1;
+        player_pos.y += (board_area.top - player_pos.y) * 2;
+    } else if (player_pos.y > board_area.bottom) {
+        player_vel.y *= -1;
+        player_pos.y += (board_area.bottom - player_pos.y) * 2;
+    }
     player_sprite.position.copy(player_pos);
 
     if (!level_ended) {
