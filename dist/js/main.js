@@ -11301,6 +11301,48 @@ function rayEnemiesCollision(pos, dir, ray_dist, ray_radius, exclude) {
     hit_enemy: enemies[best_enemy]
   };
 }
+function drawGame() {
+  if (cur_hit !== null) {
+    let original_size = cur_hit.hitter.sprite.size.clone();
+    cur_hit.hitter.sprite.size.copy(player_sprite.size.mul(0.85));
+    for (let k = last_enemy_dash_dist * 0.5; k < last_enemy_dash_dist * 1.25; k += 4) {
+      cur_hit.hitter.sprite.color = new import_color.default(0.65, 0.65, 0.65, clamp(k / (1.5 * last_enemy_dash_dist) - 0.2 * (time_since_dash / CONFIG.dash_duration), 0, 1));
+      cur_hit.hitter.sprite.position.copy(last_enemy_dash_pos.add(last_enemy_dash_dir.mul(k)));
+      import_shaku.default.gfx.drawSprite(cur_hit.hitter.sprite);
+    }
+    cur_hit.hitter.sprite.size.copy(original_size);
+    cur_hit.hitter.sprite.color = import_color.default.white;
+  }
+  target_types_sprites.forEach((x) => import_shaku.default.gfx.drawSprite(x));
+  outdated_types_sprites.forEach((x) => import_shaku.default.gfx.drawSprite(x));
+  enemies.forEach((x) => x.draw());
+  bullets.forEach((x) => x.draw());
+  spawn_sprites.forEach((x) => import_shaku.default.gfx.drawSprite(x));
+  if (cur_hit !== null && cur_hit.merge) {
+    let t = cur_hit.time_until_end / CONFIG.dash_hit_duration;
+    t = remap(t, 0.9, 0, 0, 1);
+    t = Math.floor(t * 9);
+    if (t >= 0) {
+      cur_hit.particle.setSourceFromSpritesheet(
+        new import_vector2.default(t % 3, Math.floor(t / 3)),
+        new import_vector2.default(3, 3),
+        0,
+        true
+      );
+      cur_hit.particle.size.mulSelf(1.7);
+      import_shaku.default.gfx.drawSprite(cur_hit.particle);
+    }
+  }
+  player_tail_sprite.size.copy(player_sprite.size.mul(0.5));
+  for (let k = 0; k < CONFIG.tail_frames; k++) {
+    let cur = player_pos_history.get(k);
+    player_tail_sprite.size.mulSelf(0.9);
+    player_tail_sprite.position.copy(cur[1]);
+    player_tail_sprite.color = new import_color.default(1, 1, 1, cur[0]);
+    import_shaku.default.gfx.drawSprite(player_tail_sprite);
+  }
+  import_shaku.default.gfx.drawSprite(player_sprite);
+}
 function step() {
   import_shaku.default.startFrame();
   import_shaku.default.gfx.clear(COLOR_BACKGROUND);
@@ -11315,10 +11357,7 @@ function step() {
   }
   if (paused) {
     if (cur_level_n !== -1) {
-      target_types_sprites.forEach((x) => import_shaku.default.gfx.drawSprite(x));
-      bullets.forEach((x) => x.draw());
-      enemies.forEach((x) => x.draw());
-      import_shaku.default.gfx.drawSprite(player_sprite);
+      drawGame();
     }
     let mouse_hor = 0;
     if (cursor_sprite.position.x > import_shaku.default.gfx.getCanvasSize().x / 2 + 160 * SCALING) {
@@ -11465,10 +11504,10 @@ function step() {
               let pE = target_types_sprites[target_type_index[k]].position;
               let p1 = import_vector2.default.lerp(p0, pE, 0.5);
               p1.addSelf(import_vector2.default.random.mulSelf(200));
-              let original_size2 = x.sprite.size.clone();
+              let original_size = x.sprite.size.clone();
               new import_animator.default(x).onUpdate((t) => {
                 x.pos.copy(bezier3(t, p0, p1, pE));
-                x.sprite.size = original_size2.mul(1 - t * (1 - t) * (1 - t) * 3);
+                x.sprite.size = original_size.mul(1 - t * (1 - t) * (1 - t) * 3);
               }).duration(0.75).smoothDamp(true).delay(delays[k]).play().then(() => {
                 enemies = enemies.filter((y) => y !== x);
                 target_types_sprites[target_type_index[k]].color = import_color.default.white;
@@ -11490,15 +11529,6 @@ function step() {
         }
       }
     }
-    let original_size = cur_hit.hitter.sprite.size.clone();
-    cur_hit.hitter.sprite.size.copy(player_sprite.size.mul(0.85));
-    for (let k = last_enemy_dash_dist * 0.5; k < last_enemy_dash_dist * 1.25; k += 4) {
-      cur_hit.hitter.sprite.color = new import_color.default(0.65, 0.65, 0.65, clamp(k / (1.5 * last_enemy_dash_dist) - 0.2 * (time_since_dash / CONFIG.dash_duration), 0, 1));
-      cur_hit.hitter.sprite.position.copy(last_enemy_dash_pos.add(last_enemy_dash_dir.mul(k)));
-      import_shaku.default.gfx.drawSprite(cur_hit.hitter.sprite);
-    }
-    cur_hit.hitter.sprite.size.copy(original_size);
-    cur_hit.hitter.sprite.color = import_color.default.white;
     if (cur_hit.time_until_end <= 0) {
       import_shaku.default.gfx.setCameraOrthographic(import_vector2.default.zero);
       if (cur_hit.merge) {
@@ -11645,24 +11675,7 @@ function step() {
   enemies.forEach((x) => x.draw());
   bullets.forEach((x) => x.draw());
   spawn_sprites.forEach((x) => import_shaku.default.gfx.drawSprite(x));
-  if (cur_hit !== null) {
-    let t = cur_hit.time_until_end / CONFIG.dash_hit_duration;
-    if (cur_hit.merge) {
-      t = remap(t, 0.9, 0, 0, 1);
-      t = Math.floor(t * 9);
-      if (t >= 0) {
-        cur_hit.particle.setSourceFromSpritesheet(
-          new import_vector2.default(t % 3, Math.floor(t / 3)),
-          new import_vector2.default(3, 3),
-          0,
-          true
-        );
-        cur_hit.particle.size.mulSelf(1.7);
-        import_shaku.default.gfx.drawSprite(cur_hit.particle);
-      }
-    } else {
-    }
-  } else if (player_stun_time_remaining === 0) {
+  if (cur_hit === null && player_stun_time_remaining === 0) {
     let colliding_index = enemies.findIndex((x) => !x.flying && import_vector2.default.distance(player_pos, x.pos) < CONFIG.enemy_radius + CONFIG.player_radius);
     if (colliding_index !== -1) {
       player_stun_time_remaining = CONFIG.stun_time;
@@ -11677,17 +11690,9 @@ function step() {
       player_sprite.color = Math.floor(player_stun_time_remaining * 7) % 2 === 0 ? import_color.default.white : import_color.default.gray;
     }
   }
-  player_tail_sprite.size.copy(player_sprite.size.mul(0.5));
-  for (let k = 0; k < CONFIG.tail_frames; k++) {
-    let cur = player_pos_history.get(k);
-    player_tail_sprite.size.mulSelf(0.9);
-    player_tail_sprite.position.copy(cur[1]);
-    player_tail_sprite.color = new import_color.default(1, 1, 1, cur[0]);
-    import_shaku.default.gfx.drawSprite(player_tail_sprite);
-  }
+  drawGame();
   player_pos_history.removeBack();
   player_pos_history.insertFront([player_vel.length / 600, player_pos.sub(player_dir.mul(CONFIG.player_radius * 0.7))]);
-  import_shaku.default.gfx.drawSprite(player_sprite);
   import_shaku.default.gfx.drawSprite(cursor_sprite);
   import_shaku.default.gfx.useEffect(null);
   time_since_dash += import_shaku.default.gameTime.delta;

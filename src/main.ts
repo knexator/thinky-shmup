@@ -824,6 +824,51 @@ function rayEnemiesCollision(pos: Vector2, dir: Vector2, ray_dist: number, ray_r
     }
 }
 
+function drawGame() {
+    if (cur_hit !== null) {
+        // draw enemy hit trail
+        let original_size = cur_hit.hitter.sprite.size.clone();
+        cur_hit.hitter.sprite.size.copy(player_sprite.size.mul(.85));
+        for (let k = last_enemy_dash_dist * .5; k < last_enemy_dash_dist * 1.25; k += 4) {
+            cur_hit.hitter.sprite.color = new Color(.65, .65, .65, clamp(k / (1.5 * last_enemy_dash_dist) - .2 * (time_since_dash / CONFIG.dash_duration), 0, 1));
+            cur_hit.hitter.sprite.position.copy(last_enemy_dash_pos.add(last_enemy_dash_dir.mul(k)));
+            Shaku.gfx!.drawSprite(cur_hit.hitter.sprite);
+        }
+        cur_hit.hitter.sprite.size.copy(original_size);
+        cur_hit.hitter.sprite.color = Color.white;
+    }
+
+    target_types_sprites.forEach(x => Shaku.gfx.drawSprite(x));
+    outdated_types_sprites.forEach(x => Shaku.gfx.drawSprite(x));
+    enemies.forEach(x => x.draw());
+    bullets.forEach(x => x.draw());
+    spawn_sprites.forEach(x => Shaku.gfx.drawSprite(x));
+    if (cur_hit !== null && cur_hit.merge) {
+        let t = cur_hit.time_until_end / CONFIG.dash_hit_duration;
+        t = remap(t, .9, 0, 0, 1);
+        t = Math.floor(t * 9);
+        // console.log(t);
+        if (t >= 0) {
+            cur_hit.particle.setSourceFromSpritesheet(
+                new Vector2(t % 3, Math.floor(t / 3)), new Vector2(3, 3), 0, true
+            );
+            cur_hit.particle.size.mulSelf(1.7);
+            Shaku.gfx.drawSprite(cur_hit.particle);
+        }
+    }
+
+    player_tail_sprite.size.copy(player_sprite.size.mul(.5))
+    for (let k = 0; k < CONFIG.tail_frames; k++) {
+        let cur = player_pos_history.get(k)!;
+        player_tail_sprite.size.mulSelf(.9);
+        player_tail_sprite.position.copy(cur[1]);
+        player_tail_sprite.color = new Color(1, 1, 1, cur[0]);
+        Shaku.gfx!.drawSprite(player_tail_sprite);
+    }
+
+    Shaku.gfx!.drawSprite(player_sprite);
+}
+
 // do a single main loop step and request the next step
 function step() {
     // start a new frame and clear screen
@@ -851,10 +896,7 @@ function step() {
     if (paused) {
         if (cur_level_n !== -1) {
             // actual pause instead of start up menu
-            target_types_sprites.forEach(x => Shaku.gfx.drawSprite(x));
-            bullets.forEach(x => x.draw());
-            enemies.forEach(x => x.draw());
-            Shaku.gfx!.drawSprite(player_sprite);
+            drawGame();
         }
 
         let mouse_hor = 0;
@@ -1058,17 +1100,6 @@ function step() {
                 }
             }
         }
-
-        // draw enemy hit trail
-        let original_size = cur_hit.hitter.sprite.size.clone();
-        cur_hit.hitter.sprite.size.copy(player_sprite.size.mul(.85));
-        for (let k = last_enemy_dash_dist * .5; k < last_enemy_dash_dist * 1.25; k += 4) {
-            cur_hit.hitter.sprite.color = new Color(.65, .65, .65, clamp(k / (1.5 * last_enemy_dash_dist) - .2 * (time_since_dash / CONFIG.dash_duration), 0, 1));
-            cur_hit.hitter.sprite.position.copy(last_enemy_dash_pos.add(last_enemy_dash_dir.mul(k)));
-            Shaku.gfx!.drawSprite(cur_hit.hitter.sprite);
-        }
-        cur_hit.hitter.sprite.size.copy(original_size);
-        cur_hit.hitter.sprite.color = Color.white;
 
         if (cur_hit.time_until_end <= 0) {
             Shaku.gfx.setCameraOrthographic(Vector2.zero);
@@ -1276,35 +1307,12 @@ function step() {
         enemies.forEach(x => x.update(dt));
     }
     bullets.forEach(x => x.update(dt));
-    // Shaku.gfx.useEffect(screen_texture_effect);
     target_types_sprites.forEach(x => Shaku.gfx.drawSprite(x));
     outdated_types_sprites.forEach(x => Shaku.gfx.drawSprite(x));
     enemies.forEach(x => x.draw());
     bullets.forEach(x => x.draw());
     spawn_sprites.forEach(x => Shaku.gfx.drawSprite(x));
-    if (cur_hit !== null) {
-        let t = cur_hit.time_until_end / CONFIG.dash_hit_duration;
-        if (cur_hit.merge) {
-            t = remap(t, .9, 0, 0, 1);
-            t = Math.floor(t * 9);
-            // console.log(t);
-            if (t >= 0) {
-                cur_hit.particle.setSourceFromSpritesheet(
-                    new Vector2(t % 3, Math.floor(t / 3)), new Vector2(3, 3), 0, true
-                );
-                cur_hit.particle.size.mulSelf(1.7);
-                Shaku.gfx.drawSprite(cur_hit.particle);
-            }
-        } else {
-            // // t = Math.floor((1 - t) * 3);
-            // // console.log(t);
-            // let n = (t > .8) ? 0 : (t > .5 ? 1 : 2);
-            // cur_hit.particle.setSourceFromSpritesheet(
-            //     new Vector2(n % 3, Math.floor(n / 3)), new Vector2(3, 2), 0, true
-            // );
-            // Shaku.gfx.drawSprite(cur_hit.particle);
-        }
-    } else if (player_stun_time_remaining === 0) {
+    if (cur_hit === null && player_stun_time_remaining === 0) {
         // maybe stun player
         let colliding_index = enemies.findIndex(x => !x.flying && Vector2.distance(player_pos, x.pos) < (CONFIG.enemy_radius + CONFIG.player_radius));
         if (colliding_index !== -1) {
@@ -1323,15 +1331,8 @@ function step() {
         }
     }
 
-    player_tail_sprite.size.copy(player_sprite.size.mul(.5))
-    for (let k = 0; k < CONFIG.tail_frames; k++) {
-        let cur = player_pos_history.get(k)!;
-        player_tail_sprite.size.mulSelf(.9);
-        player_tail_sprite.position.copy(cur[1]);
-        player_tail_sprite.color = new Color(1, 1, 1, cur[0]);
-        Shaku.gfx!.drawSprite(player_tail_sprite);
+    drawGame();
 
-    }
     // time_until_store_pos -= dt;
     // if (time_until_store_pos <= 0) {
     player_pos_history.removeBack();
@@ -1341,7 +1342,6 @@ function step() {
     //     time_until_store_pos = 0.01;
     // }
 
-    Shaku.gfx!.drawSprite(player_sprite);
     Shaku.gfx!.drawSprite(cursor_sprite);
     // @ts-ignore
     Shaku.gfx.useEffect(null);
