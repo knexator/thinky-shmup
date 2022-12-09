@@ -4563,13 +4563,13 @@ var require_msdf_font_texture_asset = __commonJS({
 var require_text_alignments = __commonJS({
   "../Shaku/lib/gfx/text_alignments.js"(exports, module) {
     "use strict";
-    var TextAlignments = {
+    var TextAlignments2 = {
       Left: "left",
       Right: "right",
       Center: "center"
     };
-    Object.freeze(TextAlignments);
-    module.exports = { TextAlignments };
+    Object.freeze(TextAlignments2);
+    module.exports = { TextAlignments: TextAlignments2 };
   }
 });
 
@@ -4923,7 +4923,7 @@ var require_gfx = __commonJS({
     var Vector22 = require_vector2();
     var FontTextureAsset = require_font_texture_asset();
     var MsdfFontTextureAsset = require_msdf_font_texture_asset();
-    var { TextAlignment, TextAlignments } = require_text_alignments();
+    var { TextAlignment, TextAlignments: TextAlignments2 } = require_text_alignments();
     var Mesh = require_mesh();
     var Circle2 = require_circle();
     var SpriteBatch = require_sprite_batch();
@@ -4998,14 +4998,14 @@ var require_gfx = __commonJS({
         return Vertex;
       }
       get TextAlignments() {
-        return TextAlignments;
+        return TextAlignments2;
       }
       get TextAlignment() {
         if (!this._TextAlignment_dep) {
           console.warn(`'gfx.TextAlignment' is deprecated and will be removed in future versions. Please use 'gfx.TextAlignments' instead.`);
           this._TextAlignment_dep = true;
         }
-        return TextAlignments;
+        return TextAlignments2;
       }
       createCamera(withViewport) {
         let ret = new Camera(this);
@@ -5215,7 +5215,7 @@ var require_gfx = __commonJS({
         if (!fontTexture || !fontTexture.valid) {
           throw new Error("Font texture is invalid!");
         }
-        alignment = alignment || TextAlignments.Left;
+        alignment = alignment || TextAlignments2.Left;
         color = color || Color3.black;
         fontSize = fontSize || fontTexture.fontSize;
         marginFactor = marginFactor || Vector22.one;
@@ -5226,10 +5226,10 @@ var require_gfx = __commonJS({
         function breakLine() {
           let offsetX = 0;
           switch (alignment) {
-            case TextAlignments.Right:
+            case TextAlignments2.Right:
               offsetX = -lineWidth;
               break;
-            case TextAlignments.Center:
+            case TextAlignments2.Center:
               offsetX = -lineWidth / 2;
               break;
           }
@@ -10925,8 +10925,10 @@ import_shaku.default.input.setTargetElement(() => import_shaku.default.gfx.canva
 await import_shaku.default.init([import_shaku.default.assets, import_shaku.default.sfx, import_shaku.default.gfx, import_shaku.default.input]);
 document.body.appendChild(import_shaku.default.gfx.canvas);
 import_shaku.default.gfx.maximizeCanvasSize(false, false);
-var paused = false;
+var SCALING = import_shaku.default.gfx.getCanvasSize().y / 937;
+var paused = true;
 var COLOR_BACKGROUND = new import_color.default(0.2, 0.195, 0.205);
+var logo_font = await import_shaku.default.assets.loadMsdfFontTexture("fonts/ZenDots.ttf", { jsonUrl: "fonts/ZenDots.json", textureUrl: "fonts/ZenDots.png" });
 var cursor_texture = await import_shaku.default.assets.loadTexture("imgs/cursor.png", { generateMipMaps: true });
 cursor_texture.filter = import_gfx.TextureFilterModes.Linear;
 var cursor_sprite = new import_shaku.default.gfx.Sprite(cursor_texture);
@@ -11146,7 +11148,9 @@ var screen_shake_noise = new import_perlin.default(Math.random());
 var enemies = [];
 var bullets = [];
 var spawn_sprites = [];
-var cur_level_n = 0;
+var cur_level_n = -1;
+var menu_level_n = 0;
+var menu_vertical = -1;
 var levels = [
   [[0 /* C */, 0 /* C */, 7 /* MM */], [6 /* CC */, 1 /* M */, 1 /* M */]],
   [[7 /* MM */, 8 /* YY */, 9 /* P1 */, 9 /* P1 */], [4 /* MY */, 4 /* MY */, 9 /* P1 */, 9 /* P1 */]],
@@ -11163,6 +11167,26 @@ var initial_types = [];
 var target_types = [];
 var target_types_sprites = [];
 var outdated_types_sprites = [];
+var logo_text = import_shaku.default.gfx.buildText(logo_font, "Catalyst", 178 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
+logo_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.125);
+var start_text = import_shaku.default.gfx.buildText(logo_font, "Start", 120 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
+start_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.5);
+var continue_text = import_shaku.default.gfx.buildText(logo_font, "Continue", 100 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
+continue_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.5);
+var restart_text = import_shaku.default.gfx.buildText(logo_font, "Restart", 100 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
+restart_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.65);
+var level_n_text = [];
+for (let k = 0; k < levels.length; k++) {
+  let cur = import_shaku.default.gfx.buildText(logo_font, `Level ${k + 1}`, 54 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
+  cur.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.8);
+  level_n_text.push(cur);
+}
+var arrow_right_text = import_shaku.default.gfx.buildText(logo_font, ">", 54 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
+arrow_right_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.8);
+arrow_right_text.position.x += SCALING * 175;
+var arrow_left_text = import_shaku.default.gfx.buildText(logo_font, "<", 54 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
+arrow_left_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.8);
+arrow_left_text.position.x -= SCALING * 175;
 var level_ended = false;
 function updateCompletedTargets() {
   level_ended = enemies.length === target_types_sprites.length;
@@ -11214,9 +11238,12 @@ function spawnEnemy(x, delay) {
     });
   }, delay * 1e3);
 }
-function loadLevel(n) {
+function unloadCurrentEnemies() {
+  enemies = [];
+}
+function loadLevel(n, regenerate_targets = true) {
   level_ended = false;
-  let also_end_prev_level = target_types_sprites.length > 0;
+  let also_end_prev_level = regenerate_targets && target_types_sprites.length > 0;
   if (also_end_prev_level) {
     outdated_types_sprites = [...target_types_sprites];
     outdated_types_sprites.forEach((x, k) => {
@@ -11225,23 +11252,23 @@ function loadLevel(n) {
       ).duration(0.75 - k * 0.04).delay((outdated_types_sprites.length - k) * 0.1).smoothDamp(true).play();
     });
   }
-  console.log("also_end_prev_level: ", also_end_prev_level);
   initial_types = levels[n][0];
   target_types = levels[n][1];
   initial_types.forEach((x, k) => {
     spawnEnemy(x, k * 0.1);
   });
-  target_types_sprites = target_types.map((x, k) => {
-    let res = new import_shaku.default.gfx.Sprite(enemy_atlas_texture);
-    setSpriteToType(res, x);
-    res.position.set(board_area.x + board_area.width + CONFIG.enemy_radius * 3, -CONFIG.enemy_radius * 3);
-    new import_animator.default(res).to(
-      { "position.y": board_area.y + (k + 0.5) * CONFIG.enemy_radius * 3 }
-    ).duration(0.75 - k * 0.02).delay((also_end_prev_level ? 1 : 0) + (target_types.length - k) * 0.03).smoothDamp(true).play();
-    return res;
-  });
+  if (regenerate_targets) {
+    target_types_sprites = target_types.map((x, k) => {
+      let res = new import_shaku.default.gfx.Sprite(enemy_atlas_texture);
+      setSpriteToType(res, x);
+      res.position.set(board_area.x + board_area.width + CONFIG.enemy_radius * 3, -CONFIG.enemy_radius * 3);
+      new import_animator.default(res).to(
+        { "position.y": board_area.y + (k + 0.5) * CONFIG.enemy_radius * 3 }
+      ).duration(0.75 - k * 0.02).delay((also_end_prev_level ? 1 : 0) + (target_types.length - k) * 0.03).smoothDamp(true).play();
+      return res;
+    });
+  }
 }
-loadLevel(cur_level_n);
 function rayEnemiesCollision(pos, dir, ray_dist, ray_radius, exclude) {
   let best_dist = Infinity;
   let best_enemy = -1;
@@ -11277,24 +11304,120 @@ function rayEnemiesCollision(pos, dir, ray_dist, ray_radius, exclude) {
 function step() {
   import_shaku.default.startFrame();
   import_shaku.default.gfx.clear(COLOR_BACKGROUND);
+  cursor_sprite.position.copy(import_shaku.default.input.mousePosition);
   import_shaku.default.gfx.useEffect(background_effect);
   background_effect.uniforms.u_time(import_shaku.default.gameTime.elapsed);
   import_shaku.default.gfx.drawSprite(FULL_SCREEN_SPRITE);
   import_shaku.default.gfx.useEffect(null);
-  if (import_shaku.default.input.pressed("escape")) {
+  if (cur_level_n !== -1 && import_shaku.default.input.pressed("escape")) {
     paused = !paused;
+    menu_vertical = 0;
   }
   if (paused) {
-    target_types_sprites.forEach((x) => import_shaku.default.gfx.drawSprite(x));
-    bullets.forEach((x) => x.draw());
-    enemies.forEach((x) => x.draw());
-    import_shaku.default.gfx.drawSprite(player_sprite);
+    if (cur_level_n !== -1) {
+      target_types_sprites.forEach((x) => import_shaku.default.gfx.drawSprite(x));
+      bullets.forEach((x) => x.draw());
+      enemies.forEach((x) => x.draw());
+      import_shaku.default.gfx.drawSprite(player_sprite);
+    }
+    let mouse_hor = 0;
+    if (cursor_sprite.position.x > import_shaku.default.gfx.getCanvasSize().x / 2 + 160 * SCALING) {
+      mouse_hor = 1;
+    } else if (cursor_sprite.position.x < import_shaku.default.gfx.getCanvasSize().x / 2 - 160 * SCALING) {
+      mouse_hor = -1;
+    }
+    if (menu_vertical === 2 && menu_level_n < levels.length - 1) {
+      if (import_shaku.default.input.pressed(["right", "d"]) || import_shaku.default.input.mousePressed() && mouse_hor === 1) {
+        menu_level_n += 1;
+        level_n_text[menu_level_n].scale.x = Math.random() * 0.1 + 1.1;
+        level_n_text[menu_level_n].scale.y = level_n_text[menu_level_n].scale.x;
+        level_n_text[menu_level_n].rotation = 0.1;
+        new import_animator.default(level_n_text[menu_level_n]).to({ "scale.x": 1, "scale.y": 1, "rotation": 0 }).duration(0.1).play();
+      }
+    }
+    if (menu_vertical === 2 && menu_level_n > 0) {
+      if (import_shaku.default.input.pressed(["left", "a"]) || import_shaku.default.input.mousePressed() && mouse_hor === -1) {
+        menu_level_n -= 1;
+        level_n_text[menu_level_n].scale.x = Math.random() * 0.2 + 1.1;
+        level_n_text[menu_level_n].scale.y = level_n_text[menu_level_n].scale.x;
+        level_n_text[menu_level_n].rotation = -0.1;
+        new import_animator.default(level_n_text[menu_level_n]).to({ "scale.x": 1, "scale.y": 1, "rotation": 0 }).duration(0.1).play();
+      }
+    }
+    if (import_shaku.default.input.pressed(["up", "w"])) {
+      menu_vertical = Math.max(menu_vertical - 1, 0);
+    }
+    if (import_shaku.default.input.pressed(["down", "s"])) {
+      menu_vertical = Math.min(menu_vertical + 1, 2);
+    }
+    if (import_shaku.default.input.mouseMoving) {
+      menu_vertical = cursor_sprite.position.y * SCALING < 610 ? 0 : cursor_sprite.position.y * SCALING < 745 ? 1 : 2;
+    }
+    let scale = Math.sin(import_shaku.default.gameTime.elapsed * 6) * 0.03 + 1;
+    import_shaku.default.gfx.useEffect(import_gfx.builtinEffects.MsdfFont);
+    import_shaku.default.gfx.drawGroup(logo_text, false);
+    if (cur_level_n === -1) {
+      if (menu_vertical === 2) {
+        start_text.scale.set(1, 1);
+      } else {
+        start_text.scale.set(scale, scale);
+      }
+      import_shaku.default.gfx.drawGroup(start_text, false);
+    } else {
+      if (menu_vertical === 0) {
+        continue_text.scale.set(scale, scale);
+        restart_text.scale.set(1, 1);
+      } else if (menu_vertical === 1) {
+        restart_text.scale.set(scale, scale);
+        continue_text.scale.set(1, 1);
+      }
+      import_shaku.default.gfx.drawGroup(continue_text, false);
+      import_shaku.default.gfx.drawGroup(restart_text, false);
+    }
+    if (menu_vertical === 2) {
+      level_n_text[menu_level_n].scale.set(scale, scale);
+    } else {
+      level_n_text[menu_level_n].scale.set(1, 1);
+    }
+    import_shaku.default.gfx.drawGroup(level_n_text[menu_level_n], false);
+    if (menu_level_n > 0) {
+      import_shaku.default.gfx.drawGroup(arrow_left_text, false);
+    }
+    if (menu_level_n < levels.length - 1) {
+      import_shaku.default.gfx.drawGroup(arrow_right_text, false);
+    }
+    import_shaku.default.gfx.useEffect(null);
+    import_shaku.default.gfx.drawSprite(cursor_sprite);
+    if (cur_level_n === -1) {
+      if (import_shaku.default.input.pressed("space") || import_shaku.default.input.mousePressed() && (menu_vertical < 2 || mouse_hor === 0)) {
+        cur_level_n = menu_level_n;
+        loadLevel(cur_level_n);
+        paused = false;
+      }
+    } else {
+      if (menu_vertical === 0) {
+        if (import_shaku.default.input.pressed("space") || import_shaku.default.input.mousePressed()) {
+          paused = false;
+        }
+      } else if (menu_vertical === 1) {
+        if (import_shaku.default.input.pressed("space") || import_shaku.default.input.mousePressed()) {
+          unloadCurrentEnemies();
+          loadLevel(cur_level_n, false);
+          paused = false;
+        }
+      } else if (menu_vertical === 2) {
+        if (import_shaku.default.input.pressed("space") || import_shaku.default.input.mousePressed() && (menu_vertical < 2 || mouse_hor === 0)) {
+          cur_level_n = menu_level_n;
+          loadLevel(cur_level_n);
+          paused = false;
+        }
+      }
+    }
     import_shaku.default.endFrame();
     import_shaku.default.requestAnimationFrame(step);
     return;
   }
   let dt = import_shaku.default.gameTime.delta;
-  cursor_sprite.position.copy(import_shaku.default.input.mousePosition);
   if (cur_hit !== null) {
     let shake_damp = cur_hit.time_until_end / CONFIG.dash_hit_duration;
     import_shaku.default.gfx.setCameraOrthographic(new import_vector2.default(
@@ -11485,14 +11608,10 @@ function step() {
       }
     }
   }
-  let player_inputing = false;
   if (player_stun_time_remaining === 0) {
     let dx = (import_shaku.default.input.down("d") || import_shaku.default.input.down("right") ? 1 : 0) - (import_shaku.default.input.down("a") || import_shaku.default.input.down("left") ? 1 : 0);
     let dy = (import_shaku.default.input.down("s") || import_shaku.default.input.down("down") ? 1 : 0) - (import_shaku.default.input.down("w") || import_shaku.default.input.down("up") ? 1 : 0);
     let normalizer = Math.abs(dx) + Math.abs(dy) === 2 ? Math.SQRT1_2 : 1;
-    if (dx !== 0 || dy !== 0) {
-      player_inputing = true;
-    }
     player_vel.addSelf(CONFIG.player_acc * dx * normalizer * dt, CONFIG.player_acc * dy * normalizer * dt);
     player_vel.mulSelf(1 / (1 + dt * CONFIG.player_friction));
     if (player_vel.length > 1) {

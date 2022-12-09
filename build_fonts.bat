@@ -1,0 +1,1 @@
+msdf-bmfont -f json --smart-size -s 48 ./src/ZenDots.ttf -o ./dist/fonts/ZenDots
