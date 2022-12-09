@@ -10928,6 +10928,21 @@ await import_shaku.default.init([import_shaku.default.assets, import_shaku.defau
 document.body.appendChild(import_shaku.default.gfx.canvas);
 import_shaku.default.gfx.maximizeCanvasSize(false, false);
 var SCALING = import_shaku.default.gfx.getCanvasSize().y / 937;
+CONFIG.enemy_radius *= SCALING;
+CONFIG.player_radius *= SCALING;
+CONFIG.ray_radius *= SCALING;
+CONFIG.dash_dist *= SCALING;
+CONFIG.min_enemy_dist *= SCALING;
+CONFIG.enemy_throwback_speed *= SCALING;
+CONFIG.enemy_throwback_dist *= SCALING;
+CONFIG.enemy_second_hit_dist *= SCALING;
+CONFIG.enemy_speed *= SCALING;
+CONFIG.player_speed *= SCALING;
+CONFIG.screen_shake_size *= SCALING;
+CONFIG.dodge_acc *= SCALING;
+CONFIG.enemy_acc *= SCALING;
+CONFIG.player_acc *= SCALING;
+CONFIG.separation_strength *= SCALING;
 var paused = true;
 var animators = [];
 var COLOR_BACKGROUND = new import_color.default(0.2, 0.195, 0.205);
@@ -11181,33 +11196,34 @@ logo_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.125);
 var start_text = import_shaku.default.gfx.buildText(logo_font, "Start", 120 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
 start_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.5);
 var continue_text = import_shaku.default.gfx.buildText(logo_font, "Continue", 100 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
-continue_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.5);
+continue_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.45);
 var restart_text = import_shaku.default.gfx.buildText(logo_font, "Restart", 100 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
-restart_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.65);
+restart_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.6);
 var level_n_text = [];
 for (let k = 0; k < levels.length; k++) {
   let cur = import_shaku.default.gfx.buildText(logo_font, `Level ${k + 1}`, 54 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
-  cur.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.8);
+  cur.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.75);
   level_n_text.push(cur);
 }
 var arrow_right_text = import_shaku.default.gfx.buildText(logo_font, ">", 54 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
-arrow_right_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.8);
+arrow_right_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.75);
 arrow_right_text.position.x += SCALING * 175;
 var arrow_left_text = import_shaku.default.gfx.buildText(logo_font, "<", 54 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
-arrow_left_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.8);
+arrow_left_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.75);
 arrow_left_text.position.x -= SCALING * 175;
 var pause_menu_types_sprites = levels.map(([initial, target]) => {
   let res = [];
   initial.forEach((x, k) => {
     let cur = new import_shaku.default.gfx.Sprite(enemy_atlas_texture);
     setSpriteToType(cur, x);
-    cur.position = arrow_left_text.position.add(-(k + 1.25) * SCALING * CONFIG.enemy_radius * 2.5, +SCALING * 40);
+    cur.position = board_area.getBottomLeft().addSelf((k + 0.5) * CONFIG.enemy_radius * 2.5, -CONFIG.enemy_radius * 1);
+    cur.rotation = Math.PI;
     res.push(cur);
   });
   target.forEach((x, k) => {
     let cur = new import_shaku.default.gfx.Sprite(enemy_atlas_texture);
     setSpriteToType(cur, x);
-    cur.position = arrow_right_text.position.add((k + 1.25) * SCALING * CONFIG.enemy_radius * 2.5, +SCALING * 40);
+    cur.position = board_area.getBottomRight().addSelf(-(k + 0.5) * CONFIG.enemy_radius * 2.5, -CONFIG.enemy_radius * 1);
     res.push(cur);
   });
   return res;
@@ -11249,7 +11265,7 @@ function spawnEnemy(x, delay) {
       0,
       true
     );
-    spawn_sprite.size.mulSelf(1.7);
+    spawn_sprite.size.mulSelf(1.7 * SCALING);
     spawn_sprites.push(spawn_sprite);
     let spawned = false;
     animators.push(new import_animator.default(spawn_sprite).duration(CONFIG.spawn_time).onUpdate((t) => {
@@ -11260,7 +11276,7 @@ function spawnEnemy(x, delay) {
         0,
         true
       );
-      spawn_sprite.size.mulSelf(1.7);
+      spawn_sprite.size.mulSelf(1.7 * SCALING);
       if (!spawned && t > 0.5) {
         spawned = true;
         let enemy = new Enemy(pos);
@@ -11363,7 +11379,7 @@ function drawGame() {
         0,
         true
       );
-      cur_hit.particle.size.mulSelf(1.7);
+      cur_hit.particle.size.mulSelf(1.7 * SCALING);
       import_shaku.default.gfx.drawSprite(cur_hit.particle);
     }
   }
@@ -11663,6 +11679,7 @@ function step() {
             let hitted_new_vel = hit_to_hitter.mul(import_vector2.default.dot(hit_to_hitter, second_ray_dir));
             let hitter_new_vel = second_ray_dir.sub(hitted_new_vel);
             let new_particle = new import_sprite.default(merge_particle_texture);
+            new_particle.size.mulSelf(SCALING);
             new_particle.position = first_hit.hit_enemy.pos.add(hit_to_hitter.mul(CONFIG.enemy_radius));
             new_particle.rotation = hit_to_hitter.getRadians() + Math.PI / 2;
             let damp = remap(import_vector2.default.dot(second_ray_dir, hit_to_hitter), 0, 1, 1, 0.75);

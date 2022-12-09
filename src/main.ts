@@ -101,6 +101,22 @@ Shaku.gfx.maximizeCanvasSize(false, false);
 const SCALING = Shaku.gfx.getCanvasSize().y / 937;
 // Shaku.gfx.canvas.style.display = "none";
 
+CONFIG.enemy_radius *= SCALING;
+CONFIG.player_radius *= SCALING;
+CONFIG.ray_radius *= SCALING;
+CONFIG.dash_dist *= SCALING;
+CONFIG.min_enemy_dist *= SCALING;
+CONFIG.enemy_throwback_speed *= SCALING;
+CONFIG.enemy_throwback_dist *= SCALING;
+CONFIG.enemy_second_hit_dist *= SCALING;
+CONFIG.enemy_speed *= SCALING;
+CONFIG.player_speed *= SCALING;
+CONFIG.screen_shake_size *= SCALING;
+CONFIG.dodge_acc *= SCALING;
+CONFIG.enemy_acc *= SCALING;
+CONFIG.player_acc *= SCALING;
+CONFIG.separation_strength *= SCALING;
+
 // Loading Screen
 // Shaku.startFrame();
 // Shaku.gfx!.clear(Shaku.utils.Color.cornflowerblue);
@@ -679,23 +695,23 @@ start_text.position = Shaku.gfx.getCanvasSize().mul(.5, .5);
 // start_text._sprites.forEach(x => x.position.addSelf(0, -40));
 
 let continue_text = Shaku.gfx.buildText(logo_font, "Continue", 100 * SCALING, Color.white, TextAlignments.Center);
-continue_text.position = Shaku.gfx.getCanvasSize().mul(.5, .5);
+continue_text.position = Shaku.gfx.getCanvasSize().mul(.5, .45);
 
 let restart_text = Shaku.gfx.buildText(logo_font, "Restart", 100 * SCALING, Color.white, TextAlignments.Center);
-restart_text.position = Shaku.gfx.getCanvasSize().mul(.5, .65);
+restart_text.position = Shaku.gfx.getCanvasSize().mul(.5, .6);
 
 let level_n_text: SpritesGroup[] = [];
 for (let k = 0; k < levels.length; k++) {
     let cur = Shaku.gfx.buildText(logo_font, `Level ${k + 1}`, 54 * SCALING, Color.white, TextAlignments.Center);
-    cur.position = Shaku.gfx.getCanvasSize().mul(.5, .8);
+    cur.position = Shaku.gfx.getCanvasSize().mul(.5, .75);
     level_n_text.push(cur);
 }
 
 let arrow_right_text = Shaku.gfx.buildText(logo_font, ">", 54 * SCALING, Color.white, TextAlignments.Center);
-arrow_right_text.position = Shaku.gfx.getCanvasSize().mul(.5, .8);
+arrow_right_text.position = Shaku.gfx.getCanvasSize().mul(.5, .75);
 arrow_right_text.position.x += SCALING * 175;
 let arrow_left_text = Shaku.gfx.buildText(logo_font, "<", 54 * SCALING, Color.white, TextAlignments.Center);
-arrow_left_text.position = Shaku.gfx.getCanvasSize().mul(.5, .8);
+arrow_left_text.position = Shaku.gfx.getCanvasSize().mul(.5, .75);
 arrow_left_text.position.x -= SCALING * 175;
 
 let pause_menu_types_sprites: Sprite[][] = levels.map(([initial, target]) => {
@@ -703,13 +719,14 @@ let pause_menu_types_sprites: Sprite[][] = levels.map(([initial, target]) => {
     initial.forEach((x, k) => {
         let cur = new Shaku.gfx!.Sprite(enemy_atlas_texture);
         setSpriteToType(cur, x);
-        cur.position = arrow_left_text.position.add(-(k + 1.25) * SCALING * CONFIG.enemy_radius * 2.5, + SCALING * 40);
+        cur.position = board_area.getBottomLeft().addSelf((k + .5) * CONFIG.enemy_radius * 2.5, - CONFIG.enemy_radius * 1);
+        cur.rotation = Math.PI;
         res.push(cur);
     });
     target.forEach((x, k) => {
         let cur = new Shaku.gfx!.Sprite(enemy_atlas_texture);
         setSpriteToType(cur, x);
-        cur.position = arrow_right_text.position.add((k + 1.25) * SCALING * CONFIG.enemy_radius * 2.5, + SCALING * 40);
+        cur.position = board_area.getBottomRight().addSelf(-(k + .5) * CONFIG.enemy_radius * 2.5, - CONFIG.enemy_radius * 1);
         res.push(cur);
     });
     return res;
@@ -754,7 +771,7 @@ function spawnEnemy(x: Ship, delay: number) {
         spawn_sprite.setSourceFromSpritesheet(
             new Vector2(0, 0), new Vector2(3, 3), 0, true
         );
-        spawn_sprite.size.mulSelf(1.7);
+        spawn_sprite.size.mulSelf(1.7 * SCALING);
         spawn_sprites.push(spawn_sprite);
 
         let spawned = false;
@@ -764,7 +781,7 @@ function spawnEnemy(x: Ship, delay: number) {
             spawn_sprite.setSourceFromSpritesheet(
                 new Vector2(n % 3, Math.floor(n / 3)), new Vector2(3, 3), 0, true
             );
-            spawn_sprite.size.mulSelf(1.7);
+            spawn_sprite.size.mulSelf(1.7 * SCALING);
             if (!spawned && t > .5) {
                 spawned = true;
                 let enemy = new Enemy(pos);
@@ -889,7 +906,7 @@ function drawGame() {
             cur_hit.particle.setSourceFromSpritesheet(
                 new Vector2(t % 3, Math.floor(t / 3)), new Vector2(3, 3), 0, true
             );
-            cur_hit.particle.size.mulSelf(1.7);
+            cur_hit.particle.size.mulSelf(1.7 * SCALING);
             Shaku.gfx.drawSprite(cur_hit.particle);
         }
     }
@@ -1267,6 +1284,7 @@ function step() {
                         // first_hit.hit_enemy.vel.addSelf(hitter_new_vel.mul(500));
                         // second_hit.hit_enemy.vel.addSelf(hitted_new_vel.mul(500));
                         let new_particle = new Sprite(merge_particle_texture);
+                        new_particle.size.mulSelf(SCALING);
                         new_particle.position = first_hit.hit_enemy.pos.add(hit_to_hitter.mul(CONFIG.enemy_radius));
                         new_particle.rotation = hit_to_hitter.getRadians() + Math.PI / 2;
                         // Avoid straight shoots having too much energy
