@@ -23,6 +23,7 @@ precision highp float;
 
 uniform float u_time;
 uniform sampler2D u_texture;
+uniform float u_alpha;
 
 in vec2 v_texCoord;
 out vec4 FragColor;
@@ -121,7 +122,7 @@ void main(void) {
     float thing2 = mix(sampled.b, 0.1, smoothstep(.1, .7, noise2));
     float thing3 = mix(thing1, thing2, smoothstep(.1, .7, noise3));
     vec3 result = vec3(thing3,thing3-.025,thing3+.025);
-    FragColor = vec4(result + border * .8, 1.0);
+    FragColor = vec4((result + border * .8) * u_alpha, u_alpha);
     // FragColor = vec4(total, 1.0);
     // FragColor = vec4(border, border, border, 1.0);
 
@@ -149,6 +150,7 @@ export class BackgroundEffect extends Effect {
             "u_projection": { type: Effect.UniformTypes.Matrix, bind: Effect.UniformBinds.Projection },
             "u_world": { type: Effect.UniformTypes.Matrix, bind: Effect.UniformBinds.World },
             "u_time": { type: Effect.UniformTypes.Float, bind: "u_time" },
+            "u_alpha": { type: Effect.UniformTypes.Float, bind: "u_alpha" },
             "u_aspect_ratio": { type: Effect.UniformTypes.Float, bind: "u_aspect_ratio" },
         };
     }

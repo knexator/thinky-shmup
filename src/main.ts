@@ -107,6 +107,7 @@ const SCALING = Shaku.gfx.getCanvasSize().y / 937;
 // Shaku.endFrame();
 
 let paused = true;
+let animators: Animator[] = [];
 
 enum Ship {
     C, M, Y,
@@ -195,6 +196,8 @@ Shaku.gfx.useEffect(background_effect);
 background_effect.uniforms["u_texture"](background_texture, 4);
 // @ts-ignore
 background_effect.uniforms["u_aspect_ratio"](FULL_SCREEN_SPRITE.size.x / FULL_SCREEN_SPRITE.size.y);
+// @ts-ignore
+background_effect.uniforms["u_alpha"](1);
 // @ts-ignore
 Shaku.gfx.useEffect(null);
 
@@ -629,17 +632,28 @@ let menu_level_n = 0;
 let menu_vertical = -1;
 const levels = [
     // [[Ship.C, Ship.C, Ship.M, Ship.M, Ship.Y, Ship.Y], [Ship.CC, Ship.M, Ship.M]],
-    [[Ship.C, Ship.C, Ship.MM], [Ship.CC, Ship.M, Ship.M]], // 0: learn about splitting 
-    [[Ship.MM, Ship.YY, Ship.P1, Ship.P1], [Ship.MY, Ship.MY, Ship.P1, Ship.P1]], // 1: more splitting
-    [[Ship.C, Ship.C, Ship.C], [Ship.Y, Ship.M, Ship.P2]], // 2: learn about 3 equal
-    [[Ship.C, Ship.Y, Ship.M], [Ship.Y, Ship.Y, Ship.P2]], // 3: learn about 3 different
-    [[Ship.M, Ship.M, Ship.P2], [Ship.C, Ship.C, Ship.P2]], // 4: relearn about 3 different, just in case
-    [[Ship.C, Ship.C, Ship.C, Ship.Y], [Ship.M, Ship.M, Ship.C, Ship.Y]], // 5: start with 3 equal
-    [[Ship.Y, Ship.Y, Ship.M, Ship.M, Ship.M], [Ship.Y, Ship.Y, Ship.C, Ship.C, Ship.M]], // 6: start with 3 equal
-    [[Ship.Y, Ship.Y, Ship.Y, Ship.Y], [Ship.C, Ship.C, Ship.C, Ship.C]], // 7: start with 3 equal, then separate to change
-    [[Ship.CC, Ship.YY, Ship.MM, Ship.P1, Ship.P1], [Ship.CC, Ship.CC, Ship.CC, Ship.P1, Ship.P1]], // 8: join two to get an extra P1
-    [[Ship.C, Ship.C, Ship.M, Ship.M, Ship.Y], [Ship.Y, Ship.Y, Ship.Y, Ship.Y, Ship.Y]], // 9: start with 3 different (the cool one)
+    // [[Ship.CC, Ship.P1, Ship.YY, Ship.YY], [Ship.M]], // asdf 
+    // [[Ship.MY, Ship.YC, Ship.CM, Ship.P1, Ship.MY, Ship.MY], [Ship.MY, Ship.YC, Ship.CM, Ship.P1, Ship.MM, Ship.YY]], // asdf
+    // [[ Ship.MM, Ship.YY, Ship.P2, Ship.P2, Ship.P1], [Ship.MY, Ship.YC, Ship.CM, Ship.P1, Ship.MM, Ship.YY]], // asdf
+    // [[Ship.MY, Ship.YC, Ship.CM, Ship.P1, Ship.MY, Ship.MY], [Ship.MY, Ship.YC, Ship.CM, Ship.P1, Ship.MM, Ship.YY]], // asdf
+
+    [[Ship.C, Ship.C, Ship.MM], [Ship.CC, Ship.M, Ship.M]], // learn about splitting 
+    [[Ship.MM, Ship.YY, Ship.P1, Ship.P1], [Ship.MY, Ship.MY, Ship.P1, Ship.P1]], // more splitting
+    [[Ship.C, Ship.C, Ship.C], [Ship.Y, Ship.M, Ship.P2]], // learn about 3 equal
+    [[Ship.C, Ship.Y, Ship.M], [Ship.Y, Ship.Y, Ship.P2]], // learn about 3 different
+    [[Ship.M, Ship.M, Ship.P2], [Ship.C, Ship.C, Ship.P2]], // relearn about 3 different, just in case
+    [[Ship.C, Ship.Y, Ship.P2, Ship.P2], [Ship.M, Ship.M, Ship.C, Ship.Y]], // relearn about a+b+2 = ccc & a+a+2 = abc
+    [[Ship.M, Ship.M, Ship.M, Ship.Y], [Ship.CC, Ship.M, Ship.Y, Ship.P1]], // start with 3 equal, no options
+    [[Ship.YY, Ship.YY, Ship.CC, Ship.P1], [Ship.YC, Ship.CM, Ship.MY, Ship.P1]], // forced path to the core theorem of double balls
+    [[Ship.Y, Ship.Y, Ship.Y, Ship.Y], [Ship.C, Ship.C, Ship.C, Ship.C]], // start with 3 equal, then separate to change
+    [[Ship.M, Ship.M, Ship.M, Ship.Y], [Ship.M, Ship.Y, Ship.Y, Ship.Y]], // "start with 3 equal, no options" twice in ping pong
+    [[Ship.CC, Ship.YY, Ship.P2, Ship.P2], [Ship.CC, Ship.MM, Ship.P2, Ship.P2]], // visit the core theorem
+    // [[Ship.Y, Ship.Y, Ship.M, Ship.M, Ship.M], [Ship.Y, Ship.Y, Ship.C, Ship.C, Ship.M]], // start with 3 equal // redundant & confusing
+    [[Ship.CC, Ship.YY, Ship.MM, Ship.P1, Ship.P1], [Ship.CC, Ship.CC, Ship.CC, Ship.P1, Ship.P1]], // join two to get an extra P1
+    [[Ship.C, Ship.M, Ship.P2, Ship.P2], [Ship.C, Ship.C, Ship.C, Ship.M]], // combine two previous levels to test player's memory
+    [[Ship.C, Ship.C, Ship.M, Ship.M, Ship.Y], [Ship.Y, Ship.Y, Ship.Y, Ship.Y, Ship.Y]], // start with 3 different (the cool one)
     // [[Ship.C, Ship.C, Ship.YY, Ship.YY, Ship.YY, Ship.YY, Ship.YY, Ship.YY], [Ship.CC, Ship.P1, Ship.YY, Ship.YY, Ship.YY, Ship.YY, Ship.YY, Ship.YY]],
+    [[Ship.YC, Ship.YC, Ship.P1, Ship.MM, Ship.P2, Ship.P2], [Ship.YY, Ship.CC, Ship.P1, Ship.MM, Ship.P2, Ship.P2]], // CATALYST (do stuff to get a P1) probably too confusing & unintended solutions idk
 ]
 let initial_types: Ship[] = [];
 let target_types: Ship[] = [];
@@ -684,6 +698,23 @@ let arrow_left_text = Shaku.gfx.buildText(logo_font, "<", 54 * SCALING, Color.wh
 arrow_left_text.position = Shaku.gfx.getCanvasSize().mul(.5, .8);
 arrow_left_text.position.x -= SCALING * 175;
 
+let pause_menu_types_sprites: Sprite[][] = levels.map(([initial, target]) => {
+    let res: Sprite[] = [];
+    initial.forEach((x, k) => {
+        let cur = new Shaku.gfx!.Sprite(enemy_atlas_texture);
+        setSpriteToType(cur, x);
+        cur.position = arrow_left_text.position.add(-(k + 1.25) * SCALING * CONFIG.enemy_radius * 2.5, + SCALING * 40);
+        res.push(cur);
+    });
+    target.forEach((x, k) => {
+        let cur = new Shaku.gfx!.Sprite(enemy_atlas_texture);
+        setSpriteToType(cur, x);
+        cur.position = arrow_right_text.position.add((k + 1.25) * SCALING * CONFIG.enemy_radius * 2.5, + SCALING * 40);
+        res.push(cur);
+    });
+    return res;
+});
+
 let level_ended = false;
 function updateCompletedTargets() {
     level_ended = enemies.length === target_types_sprites.length;
@@ -713,15 +744,22 @@ addEventListener("resize", (event) => {
 });
 
 function spawnEnemy(x: Ship, delay: number) {
-    setTimeout(() => {
+    animators.push(new Animator(null).duration(delay).then(() => {
         let pos = new Vector2(Math.random(), Math.random()).mulSelf(board_area.getSize()).addSelf(board_area.getTopLeft());
+        while (pos.distanceTo(player_pos) < SCALING * CONFIG.player_radius * 4) {
+            pos = new Vector2(Math.random(), Math.random()).mulSelf(board_area.getSize()).addSelf(board_area.getTopLeft());
+        }
         let spawn_sprite = new Sprite(merge_particle_texture);
         spawn_sprite.position.copy(pos);
+        spawn_sprite.setSourceFromSpritesheet(
+            new Vector2(0, 0), new Vector2(3, 3), 0, true
+        );
+        spawn_sprite.size.mulSelf(1.7);
         spawn_sprites.push(spawn_sprite);
 
         let spawned = false;
         // @ts-ignore
-        new Animator(spawn_sprite).duration(CONFIG.spawn_time).onUpdate(t => {
+        animators.push(new Animator(spawn_sprite).duration(CONFIG.spawn_time).onUpdate(t => {
             let n = Math.floor(t * 9);
             spawn_sprite.setSourceFromSpritesheet(
                 new Vector2(n % 3, Math.floor(n / 3)), new Vector2(3, 3), 0, true
@@ -729,15 +767,14 @@ function spawnEnemy(x: Ship, delay: number) {
             spawn_sprite.size.mulSelf(1.7);
             if (!spawned && t > .5) {
                 spawned = true;
-                console.log("spawned");
                 let enemy = new Enemy(pos);
                 enemy.setType(x);
                 enemies.push(enemy);
             }
-        }).play().then(() => {
+        }).then(() => {
             spawn_sprites = spawn_sprites.filter(y => y !== spawn_sprite);
-        });
-    }, delay * 1000);
+        }));
+    }));
 }
 
 function unloadCurrentEnemies() {
@@ -752,9 +789,9 @@ function loadLevel(n: number, regenerate_targets: boolean = true) {
         // old types go out of the way
         outdated_types_sprites = [...target_types_sprites];
         outdated_types_sprites.forEach((x, k) => {
-            new Animator(x).to(
+            animators.push(new Animator(x).to(
                 { "position.y": Shaku.gfx.getCanvasSize().y + CONFIG.enemy_radius * 3 }
-            ).duration(.75 - k * .04).delay((outdated_types_sprites.length - k) * .1).smoothDamp(true).play();
+            ).duration(.75 - k * .04).delay((outdated_types_sprites.length - k) * .1).smoothDamp(true));
         });
     }
 
@@ -773,9 +810,9 @@ function loadLevel(n: number, regenerate_targets: boolean = true) {
             setSpriteToType(res, x);
             // res.color = new Color(1, 1, 1, 1);
             res.position.set(board_area.x + board_area.width + CONFIG.enemy_radius * 3, - CONFIG.enemy_radius * 3);
-            new Animator(res).to(
+            animators.push(new Animator(res).to(
                 { "position.y": board_area.y + (k + .5) * CONFIG.enemy_radius * 3 }
-            ).duration(.75 - k * .02).delay((also_end_prev_level ? 1.00 : 0.00) + (target_types.length - k) * .03).smoothDamp(true).play();
+            ).duration(.75 - k * .02).delay((also_end_prev_level ? 1.00 : 0.00) + (target_types.length - k) * .03).smoothDamp(true));
             return res;
         });
     }
@@ -869,6 +906,15 @@ function drawGame() {
     Shaku.gfx!.drawSprite(player_sprite);
 }
 
+function updateAnimators(delta: number) {
+    for (let i = animators.length - 1; i >= 0; --i) {
+        animators[i].update(delta);
+        if (animators[i].ended) {
+            animators.splice(i, 1);
+        }
+    }
+}
+
 // do a single main loop step and request the next step
 function step() {
     // start a new frame and clear screen
@@ -884,6 +930,8 @@ function step() {
     Shaku.gfx.useEffect(background_effect);
     // @ts-ignore
     background_effect.uniforms.u_time(Shaku.gameTime.elapsed);
+    // @ts-ignore
+    background_effect.uniforms["u_alpha"](1);
     Shaku.gfx.drawSprite(FULL_SCREEN_SPRITE);
     // @ts-ignore
     Shaku.gfx.useEffect(null);
@@ -891,13 +939,21 @@ function step() {
     if (cur_level_n !== -1 && Shaku.input.pressed("escape")) {
         paused = !paused;
         menu_vertical = 0;
+        menu_level_n = cur_level_n;
     }
 
     if (paused) {
         if (cur_level_n !== -1) {
             // actual pause instead of start up menu
             drawGame();
+            Shaku.gfx.useEffect(background_effect);
+            // @ts-ignore
+            background_effect.uniforms.u_alpha(.5);
+            Shaku.gfx.drawSprite(FULL_SCREEN_SPRITE);
+            // @ts-ignore
+            Shaku.gfx.useEffect(null);
         }
+        updateAnimators(Shaku.gameTime.delta * 2);
 
         let mouse_hor = 0;
         if (cursor_sprite.position.x > Shaku.gfx.getCanvasSize().x / 2 + 160 * SCALING) {
@@ -911,7 +967,7 @@ function step() {
                 level_n_text[menu_level_n].scale.x = Math.random() * .1 + 1.1;
                 level_n_text[menu_level_n].scale.y = level_n_text[menu_level_n].scale.x;
                 level_n_text[menu_level_n].rotation = .1;
-                new Animator(level_n_text[menu_level_n]).to({ "scale.x": 1, "scale.y": 1, "rotation": 0 }).duration(.1).play();
+                animators.push(new Animator(level_n_text[menu_level_n]).to({ "scale.x": 1, "scale.y": 1, "rotation": 0 }).duration(.1));
             }
         }
         if (menu_vertical === 2 && menu_level_n > 0) {
@@ -920,7 +976,7 @@ function step() {
                 level_n_text[menu_level_n].scale.x = Math.random() * .2 + 1.1;
                 level_n_text[menu_level_n].scale.y = level_n_text[menu_level_n].scale.x;
                 level_n_text[menu_level_n].rotation = -.1;
-                new Animator(level_n_text[menu_level_n]).to({ "scale.x": 1, "scale.y": 1, "rotation": 0 }).duration(.1).play();
+                animators.push(new Animator(level_n_text[menu_level_n]).to({ "scale.x": 1, "scale.y": 1, "rotation": 0 }).duration(.1));
             }
         }
         if (Shaku.input.pressed(["up", "w"])) {
@@ -969,6 +1025,8 @@ function step() {
         // @ts-ignore
         Shaku.gfx.useEffect(null);
 
+        pause_menu_types_sprites[menu_level_n].forEach(x => Shaku.gfx.drawSprite(x));
+
         Shaku.gfx!.drawSprite(cursor_sprite);
 
         if (cur_level_n === -1) {
@@ -990,6 +1048,7 @@ function step() {
                 }
             } else if (menu_vertical === 2) {
                 if (Shaku.input.pressed("space") || (Shaku.input.mousePressed() && (menu_vertical < 2 || mouse_hor === 0))) {
+                    unloadCurrentEnemies();
                     cur_level_n = menu_level_n;
                     loadLevel(cur_level_n);
                     paused = false;
@@ -1016,6 +1075,7 @@ function step() {
     }
 
     let dt = Shaku.gameTime.delta;
+    updateAnimators(dt);
     // cursor_sprite.position.copy(Shaku.input.mousePosition);
 
     if (cur_hit !== null) {
@@ -1068,30 +1128,25 @@ function step() {
                             p1.addSelf(Vector2.random.mulSelf(200));
                             let original_size = x.sprite.size.clone();
                             // @ts-ignore
-                            new Animator(x).onUpdate(t => {
+                            animators.push(new Animator(x).onUpdate(t => {
                                 // x.pos.copy(Vector2.lerp(p0, pE, t));
                                 x.pos.copy(bezier3(t, p0, p1, pE));
                                 x.sprite.size = original_size.mul(1 - t * (1 - t) * (1 - t) * 3);
-                            }).duration(.75).smoothDamp(true).delay(delays[k]).play().then(() => {
+                            }).duration(.75).smoothDamp(true).delay(delays[k]).then(() => {
                                 enemies = enemies.filter(y => y !== x);
                                 target_types_sprites[target_type_index[k]].color = Color.white;
                                 console.log("end");
-                            });
-                            // let asdf = new Animator(x).to({
-                            //     "pos.x": target_types_sprites[k].position.x,
-                            //     "pos.y": target_types_sprites[k].position.y,
-                            //     // @ts-ignore
-                            // }).duration(.75).smoothDamp(true).delay(delays[k]).onUpdate(console.log).play();
+                            }));
                         });
 
-                        setTimeout(() => {
-                            cur_level_n += 1;
-                            if (cur_level_n < levels.length) {
+                        animators.push(new Animator(null).duration((enemies.length - 1) * .2 + .76).then(() => {
+                            if (cur_level_n + 1 < levels.length) {
+                                cur_level_n += 1;
                                 loadLevel(cur_level_n);
                             } else {
                                 // todo: victory screen
                             }
-                        }, (enemies.length - 1) * 200 + 760);
+                        }));
                     }
                 } else {
                     cur_hit.merge = false;
@@ -1118,10 +1173,6 @@ function step() {
             // last_dash_dist = Math.min(CONFIG.dash_dist, last_dash_dir.length);
             last_dash_dist = CONFIG.dash_dist;
             last_dash_dir.normalizeSelf();
-            // player_sprite.color = Color.white;
-            // setTimeout(() => {
-            //     player_sprite.color = Color.black;
-            // }, CONFIG.invincible_time * 1000);
 
             // collision with enemies
             let first_hit = rayEnemiesCollision(player_pos, last_dash_dir, last_dash_dist, CONFIG.ray_radius, null);
@@ -1307,11 +1358,6 @@ function step() {
         enemies.forEach(x => x.update(dt));
     }
     bullets.forEach(x => x.update(dt));
-    target_types_sprites.forEach(x => Shaku.gfx.drawSprite(x));
-    outdated_types_sprites.forEach(x => Shaku.gfx.drawSprite(x));
-    enemies.forEach(x => x.draw());
-    bullets.forEach(x => x.draw());
-    spawn_sprites.forEach(x => Shaku.gfx.drawSprite(x));
     if (cur_hit === null && player_stun_time_remaining === 0) {
         // maybe stun player
         let colliding_index = enemies.findIndex(x => !x.flying && Vector2.distance(player_pos, x.pos) < (CONFIG.enemy_radius + CONFIG.player_radius));

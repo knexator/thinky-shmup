@@ -10717,6 +10717,7 @@ precision highp float;
 
 uniform float u_time;
 uniform sampler2D u_texture;
+uniform float u_alpha;
 
 in vec2 v_texCoord;
 out vec4 FragColor;
@@ -10815,7 +10816,7 @@ void main(void) {
     float thing2 = mix(sampled.b, 0.1, smoothstep(.1, .7, noise2));
     float thing3 = mix(thing1, thing2, smoothstep(.1, .7, noise3));
     vec3 result = vec3(thing3,thing3-.025,thing3+.025);
-    FragColor = vec4(result + border * .8, 1.0);
+    FragColor = vec4((result + border * .8) * u_alpha, u_alpha);
     // FragColor = vec4(total, 1.0);
     // FragColor = vec4(border, border, border, 1.0);
 
@@ -10837,6 +10838,7 @@ var BackgroundEffect = class extends import_effect.default {
       "u_projection": { type: import_effect.default.UniformTypes.Matrix, bind: import_effect.default.UniformBinds.Projection },
       "u_world": { type: import_effect.default.UniformTypes.Matrix, bind: import_effect.default.UniformBinds.World },
       "u_time": { type: import_effect.default.UniformTypes.Float, bind: "u_time" },
+      "u_alpha": { type: import_effect.default.UniformTypes.Float, bind: "u_alpha" },
       "u_aspect_ratio": { type: import_effect.default.UniformTypes.Float, bind: "u_aspect_ratio" }
     };
   }
@@ -10927,6 +10929,7 @@ document.body.appendChild(import_shaku.default.gfx.canvas);
 import_shaku.default.gfx.maximizeCanvasSize(false, false);
 var SCALING = import_shaku.default.gfx.getCanvasSize().y / 937;
 var paused = true;
+var animators = [];
 var COLOR_BACKGROUND = new import_color.default(0.2, 0.195, 0.205);
 var logo_font = await import_shaku.default.assets.loadMsdfFontTexture("fonts/ZenDots.ttf", { jsonUrl: "fonts/ZenDots.json", textureUrl: "fonts/ZenDots.png" });
 var cursor_texture = await import_shaku.default.assets.loadTexture("imgs/cursor.png", { generateMipMaps: true });
@@ -10958,6 +10961,7 @@ var background_effect = import_shaku.default.gfx.createEffect(BackgroundEffect);
 import_shaku.default.gfx.useEffect(background_effect);
 background_effect.uniforms["u_texture"](background_texture, 4);
 background_effect.uniforms["u_aspect_ratio"](FULL_SCREEN_SPRITE.size.x / FULL_SCREEN_SPRITE.size.y);
+background_effect.uniforms["u_alpha"](1);
 import_shaku.default.gfx.useEffect(null);
 function addSteer(steer, fn) {
   for (let k = 0; k < CONFIG.steer_resolution; k++) {
@@ -11157,11 +11161,16 @@ var levels = [
   [[0 /* C */, 0 /* C */, 0 /* C */], [2 /* Y */, 1 /* M */, 10 /* P2 */]],
   [[0 /* C */, 2 /* Y */, 1 /* M */], [2 /* Y */, 2 /* Y */, 10 /* P2 */]],
   [[1 /* M */, 1 /* M */, 10 /* P2 */], [0 /* C */, 0 /* C */, 10 /* P2 */]],
-  [[0 /* C */, 0 /* C */, 0 /* C */, 2 /* Y */], [1 /* M */, 1 /* M */, 0 /* C */, 2 /* Y */]],
-  [[2 /* Y */, 2 /* Y */, 1 /* M */, 1 /* M */, 1 /* M */], [2 /* Y */, 2 /* Y */, 0 /* C */, 0 /* C */, 1 /* M */]],
+  [[0 /* C */, 2 /* Y */, 10 /* P2 */, 10 /* P2 */], [1 /* M */, 1 /* M */, 0 /* C */, 2 /* Y */]],
+  [[1 /* M */, 1 /* M */, 1 /* M */, 2 /* Y */], [6 /* CC */, 1 /* M */, 2 /* Y */, 9 /* P1 */]],
+  [[8 /* YY */, 8 /* YY */, 6 /* CC */, 9 /* P1 */], [5 /* YC */, 3 /* CM */, 4 /* MY */, 9 /* P1 */]],
   [[2 /* Y */, 2 /* Y */, 2 /* Y */, 2 /* Y */], [0 /* C */, 0 /* C */, 0 /* C */, 0 /* C */]],
+  [[1 /* M */, 1 /* M */, 1 /* M */, 2 /* Y */], [1 /* M */, 2 /* Y */, 2 /* Y */, 2 /* Y */]],
+  [[6 /* CC */, 8 /* YY */, 10 /* P2 */, 10 /* P2 */], [6 /* CC */, 7 /* MM */, 10 /* P2 */, 10 /* P2 */]],
   [[6 /* CC */, 8 /* YY */, 7 /* MM */, 9 /* P1 */, 9 /* P1 */], [6 /* CC */, 6 /* CC */, 6 /* CC */, 9 /* P1 */, 9 /* P1 */]],
-  [[0 /* C */, 0 /* C */, 1 /* M */, 1 /* M */, 2 /* Y */], [2 /* Y */, 2 /* Y */, 2 /* Y */, 2 /* Y */, 2 /* Y */]]
+  [[0 /* C */, 1 /* M */, 10 /* P2 */, 10 /* P2 */], [0 /* C */, 0 /* C */, 0 /* C */, 1 /* M */]],
+  [[0 /* C */, 0 /* C */, 1 /* M */, 1 /* M */, 2 /* Y */], [2 /* Y */, 2 /* Y */, 2 /* Y */, 2 /* Y */, 2 /* Y */]],
+  [[5 /* YC */, 5 /* YC */, 9 /* P1 */, 7 /* MM */, 10 /* P2 */, 10 /* P2 */], [8 /* YY */, 6 /* CC */, 9 /* P1 */, 7 /* MM */, 10 /* P2 */, 10 /* P2 */]]
 ];
 var initial_types = [];
 var target_types = [];
@@ -11187,6 +11196,22 @@ arrow_right_text.position.x += SCALING * 175;
 var arrow_left_text = import_shaku.default.gfx.buildText(logo_font, "<", 54 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
 arrow_left_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.8);
 arrow_left_text.position.x -= SCALING * 175;
+var pause_menu_types_sprites = levels.map(([initial, target]) => {
+  let res = [];
+  initial.forEach((x, k) => {
+    let cur = new import_shaku.default.gfx.Sprite(enemy_atlas_texture);
+    setSpriteToType(cur, x);
+    cur.position = arrow_left_text.position.add(-(k + 1.25) * SCALING * CONFIG.enemy_radius * 2.5, +SCALING * 40);
+    res.push(cur);
+  });
+  target.forEach((x, k) => {
+    let cur = new import_shaku.default.gfx.Sprite(enemy_atlas_texture);
+    setSpriteToType(cur, x);
+    cur.position = arrow_right_text.position.add((k + 1.25) * SCALING * CONFIG.enemy_radius * 2.5, +SCALING * 40);
+    res.push(cur);
+  });
+  return res;
+});
 var level_ended = false;
 function updateCompletedTargets() {
   level_ended = enemies.length === target_types_sprites.length;
@@ -11211,13 +11236,23 @@ addEventListener("resize", (event) => {
   import_shaku.default.gfx.useEffect(null);
 });
 function spawnEnemy(x, delay) {
-  setTimeout(() => {
+  animators.push(new import_animator.default(null).duration(delay).then(() => {
     let pos = new import_vector2.default(Math.random(), Math.random()).mulSelf(board_area.getSize()).addSelf(board_area.getTopLeft());
+    while (pos.distanceTo(player_pos) < SCALING * CONFIG.player_radius * 4) {
+      pos = new import_vector2.default(Math.random(), Math.random()).mulSelf(board_area.getSize()).addSelf(board_area.getTopLeft());
+    }
     let spawn_sprite = new import_sprite.default(merge_particle_texture);
     spawn_sprite.position.copy(pos);
+    spawn_sprite.setSourceFromSpritesheet(
+      new import_vector2.default(0, 0),
+      new import_vector2.default(3, 3),
+      0,
+      true
+    );
+    spawn_sprite.size.mulSelf(1.7);
     spawn_sprites.push(spawn_sprite);
     let spawned = false;
-    new import_animator.default(spawn_sprite).duration(CONFIG.spawn_time).onUpdate((t) => {
+    animators.push(new import_animator.default(spawn_sprite).duration(CONFIG.spawn_time).onUpdate((t) => {
       let n = Math.floor(t * 9);
       spawn_sprite.setSourceFromSpritesheet(
         new import_vector2.default(n % 3, Math.floor(n / 3)),
@@ -11228,15 +11263,14 @@ function spawnEnemy(x, delay) {
       spawn_sprite.size.mulSelf(1.7);
       if (!spawned && t > 0.5) {
         spawned = true;
-        console.log("spawned");
         let enemy = new Enemy(pos);
         enemy.setType(x);
         enemies.push(enemy);
       }
-    }).play().then(() => {
+    }).then(() => {
       spawn_sprites = spawn_sprites.filter((y) => y !== spawn_sprite);
-    });
-  }, delay * 1e3);
+    }));
+  }));
 }
 function unloadCurrentEnemies() {
   enemies = [];
@@ -11247,9 +11281,9 @@ function loadLevel(n, regenerate_targets = true) {
   if (also_end_prev_level) {
     outdated_types_sprites = [...target_types_sprites];
     outdated_types_sprites.forEach((x, k) => {
-      new import_animator.default(x).to(
+      animators.push(new import_animator.default(x).to(
         { "position.y": import_shaku.default.gfx.getCanvasSize().y + CONFIG.enemy_radius * 3 }
-      ).duration(0.75 - k * 0.04).delay((outdated_types_sprites.length - k) * 0.1).smoothDamp(true).play();
+      ).duration(0.75 - k * 0.04).delay((outdated_types_sprites.length - k) * 0.1).smoothDamp(true));
     });
   }
   initial_types = levels[n][0];
@@ -11262,9 +11296,9 @@ function loadLevel(n, regenerate_targets = true) {
       let res = new import_shaku.default.gfx.Sprite(enemy_atlas_texture);
       setSpriteToType(res, x);
       res.position.set(board_area.x + board_area.width + CONFIG.enemy_radius * 3, -CONFIG.enemy_radius * 3);
-      new import_animator.default(res).to(
+      animators.push(new import_animator.default(res).to(
         { "position.y": board_area.y + (k + 0.5) * CONFIG.enemy_radius * 3 }
-      ).duration(0.75 - k * 0.02).delay((also_end_prev_level ? 1 : 0) + (target_types.length - k) * 0.03).smoothDamp(true).play();
+      ).duration(0.75 - k * 0.02).delay((also_end_prev_level ? 1 : 0) + (target_types.length - k) * 0.03).smoothDamp(true));
       return res;
     });
   }
@@ -11343,22 +11377,37 @@ function drawGame() {
   }
   import_shaku.default.gfx.drawSprite(player_sprite);
 }
+function updateAnimators(delta) {
+  for (let i = animators.length - 1; i >= 0; --i) {
+    animators[i].update(delta);
+    if (animators[i].ended) {
+      animators.splice(i, 1);
+    }
+  }
+}
 function step() {
   import_shaku.default.startFrame();
   import_shaku.default.gfx.clear(COLOR_BACKGROUND);
   cursor_sprite.position.copy(import_shaku.default.input.mousePosition);
   import_shaku.default.gfx.useEffect(background_effect);
   background_effect.uniforms.u_time(import_shaku.default.gameTime.elapsed);
+  background_effect.uniforms["u_alpha"](1);
   import_shaku.default.gfx.drawSprite(FULL_SCREEN_SPRITE);
   import_shaku.default.gfx.useEffect(null);
   if (cur_level_n !== -1 && import_shaku.default.input.pressed("escape")) {
     paused = !paused;
     menu_vertical = 0;
+    menu_level_n = cur_level_n;
   }
   if (paused) {
     if (cur_level_n !== -1) {
       drawGame();
+      import_shaku.default.gfx.useEffect(background_effect);
+      background_effect.uniforms.u_alpha(0.5);
+      import_shaku.default.gfx.drawSprite(FULL_SCREEN_SPRITE);
+      import_shaku.default.gfx.useEffect(null);
     }
+    updateAnimators(import_shaku.default.gameTime.delta * 2);
     let mouse_hor = 0;
     if (cursor_sprite.position.x > import_shaku.default.gfx.getCanvasSize().x / 2 + 160 * SCALING) {
       mouse_hor = 1;
@@ -11371,7 +11420,7 @@ function step() {
         level_n_text[menu_level_n].scale.x = Math.random() * 0.1 + 1.1;
         level_n_text[menu_level_n].scale.y = level_n_text[menu_level_n].scale.x;
         level_n_text[menu_level_n].rotation = 0.1;
-        new import_animator.default(level_n_text[menu_level_n]).to({ "scale.x": 1, "scale.y": 1, "rotation": 0 }).duration(0.1).play();
+        animators.push(new import_animator.default(level_n_text[menu_level_n]).to({ "scale.x": 1, "scale.y": 1, "rotation": 0 }).duration(0.1));
       }
     }
     if (menu_vertical === 2 && menu_level_n > 0) {
@@ -11380,7 +11429,7 @@ function step() {
         level_n_text[menu_level_n].scale.x = Math.random() * 0.2 + 1.1;
         level_n_text[menu_level_n].scale.y = level_n_text[menu_level_n].scale.x;
         level_n_text[menu_level_n].rotation = -0.1;
-        new import_animator.default(level_n_text[menu_level_n]).to({ "scale.x": 1, "scale.y": 1, "rotation": 0 }).duration(0.1).play();
+        animators.push(new import_animator.default(level_n_text[menu_level_n]).to({ "scale.x": 1, "scale.y": 1, "rotation": 0 }).duration(0.1));
       }
     }
     if (import_shaku.default.input.pressed(["up", "w"])) {
@@ -11426,6 +11475,7 @@ function step() {
       import_shaku.default.gfx.drawGroup(arrow_right_text, false);
     }
     import_shaku.default.gfx.useEffect(null);
+    pause_menu_types_sprites[menu_level_n].forEach((x) => import_shaku.default.gfx.drawSprite(x));
     import_shaku.default.gfx.drawSprite(cursor_sprite);
     if (cur_level_n === -1) {
       if (import_shaku.default.input.pressed("space") || import_shaku.default.input.mousePressed() && (menu_vertical < 2 || mouse_hor === 0)) {
@@ -11446,6 +11496,7 @@ function step() {
         }
       } else if (menu_vertical === 2) {
         if (import_shaku.default.input.pressed("space") || import_shaku.default.input.mousePressed() && (menu_vertical < 2 || mouse_hor === 0)) {
+          unloadCurrentEnemies();
           cur_level_n = menu_level_n;
           loadLevel(cur_level_n);
           paused = false;
@@ -11457,6 +11508,7 @@ function step() {
     return;
   }
   let dt = import_shaku.default.gameTime.delta;
+  updateAnimators(dt);
   if (cur_hit !== null) {
     let shake_damp = cur_hit.time_until_end / CONFIG.dash_hit_duration;
     import_shaku.default.gfx.setCameraOrthographic(new import_vector2.default(
@@ -11505,22 +11557,22 @@ function step() {
               let p1 = import_vector2.default.lerp(p0, pE, 0.5);
               p1.addSelf(import_vector2.default.random.mulSelf(200));
               let original_size = x.sprite.size.clone();
-              new import_animator.default(x).onUpdate((t) => {
+              animators.push(new import_animator.default(x).onUpdate((t) => {
                 x.pos.copy(bezier3(t, p0, p1, pE));
                 x.sprite.size = original_size.mul(1 - t * (1 - t) * (1 - t) * 3);
-              }).duration(0.75).smoothDamp(true).delay(delays[k]).play().then(() => {
+              }).duration(0.75).smoothDamp(true).delay(delays[k]).then(() => {
                 enemies = enemies.filter((y) => y !== x);
                 target_types_sprites[target_type_index[k]].color = import_color.default.white;
                 console.log("end");
-              });
+              }));
             });
-            setTimeout(() => {
-              cur_level_n += 1;
-              if (cur_level_n < levels.length) {
+            animators.push(new import_animator.default(null).duration((enemies.length - 1) * 0.2 + 0.76).then(() => {
+              if (cur_level_n + 1 < levels.length) {
+                cur_level_n += 1;
                 loadLevel(cur_level_n);
               } else {
               }
-            }, (enemies.length - 1) * 200 + 760);
+            }));
           }
         } else {
           cur_hit.merge = false;
@@ -11670,11 +11722,6 @@ function step() {
     enemies.forEach((x) => x.update(dt));
   }
   bullets.forEach((x) => x.update(dt));
-  target_types_sprites.forEach((x) => import_shaku.default.gfx.drawSprite(x));
-  outdated_types_sprites.forEach((x) => import_shaku.default.gfx.drawSprite(x));
-  enemies.forEach((x) => x.draw());
-  bullets.forEach((x) => x.draw());
-  spawn_sprites.forEach((x) => import_shaku.default.gfx.drawSprite(x));
   if (cur_hit === null && player_stun_time_remaining === 0) {
     let colliding_index = enemies.findIndex((x) => !x.flying && import_vector2.default.distance(player_pos, x.pos) < CONFIG.enemy_radius + CONFIG.player_radius);
     if (colliding_index !== -1) {
