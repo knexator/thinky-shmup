@@ -10950,6 +10950,7 @@ var logo_font = await import_shaku.default.assets.loadMsdfFontTexture("fonts/Zen
 var cursor_texture = await import_shaku.default.assets.loadTexture("imgs/cursor.png", { generateMipMaps: true });
 cursor_texture.filter = import_gfx.TextureFilterModes.Linear;
 var cursor_sprite = new import_shaku.default.gfx.Sprite(cursor_texture);
+cursor_sprite.size.mulSelf(SCALING);
 var enemy_atlas_texture = await import_shaku.default.assets.loadTexture("imgs/enemies.png", { generateMipMaps: true });
 enemy_atlas_texture.filter = import_gfx.TextureFilterModes.Linear;
 var player_sprite = new import_shaku.default.gfx.Sprite(enemy_atlas_texture);

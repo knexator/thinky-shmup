@@ -140,6 +140,7 @@ const logo_font = await Shaku.assets.loadMsdfFontTexture('fonts/ZenDots.ttf', { 
 let cursor_texture = await Shaku.assets.loadTexture("imgs/cursor.png", { generateMipMaps: true });
 cursor_texture.filter = TextureFilterModes.Linear;
 let cursor_sprite = new Shaku.gfx!.Sprite(cursor_texture);
+cursor_sprite.size.mulSelf(SCALING);
 // cursor_sprite.color = new Color(1, 1, 1, .75);
 
 let enemy_atlas_texture = await Shaku.assets.loadTexture("imgs/enemies.png", { generateMipMaps: true });
