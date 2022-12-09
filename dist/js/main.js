@@ -11146,10 +11146,9 @@ var player_pos = import_shaku.default.gfx.getCanvasSize().mulSelf(0.5);
 var player_dir = import_vector2.default.right;
 var player_vel = import_vector2.default.right.mulSelf(CONFIG.player_speed);
 var player_stun_time_remaining = 0;
-var time_until_store_pos = 0;
 var player_pos_history = new import_double_ended_queue.default(60);
 while (player_pos_history.length < CONFIG.tail_frames) {
-  player_pos_history.insertFront(player_pos.clone());
+  player_pos_history.insertFront([0, import_vector2.default.zero]);
 }
 var screen_shake_noise = new import_perlin.default(Math.random());
 var enemies = [];
@@ -11481,6 +11480,7 @@ function step() {
     if (time_since_dash < CONFIG.dash_duration) {
       player_tail_sprite.size.copy(player_sprite.size.mul(0.85 * (1 - clamp(time_since_dash / CONFIG.dash_duration, 0, 0.5))));
       for (let k = 0; k < last_dash_dist; k += 4) {
+        player_tail_sprite.color = new import_color.default(0.65, 0.65, 0.65, clamp(k / last_dash_dist - 0.2 * (time_since_dash / CONFIG.dash_duration), 0, 1));
         player_tail_sprite.position.copy(last_dash_pos.add(last_dash_dir.mul(k)));
         import_shaku.default.gfx.drawSprite(player_tail_sprite);
       }
@@ -11559,18 +11559,16 @@ function step() {
       player_sprite.color = Math.floor(player_stun_time_remaining * 7) % 2 === 0 ? import_color.default.white : import_color.default.gray;
     }
   }
-  player_tail_sprite.size.copy(player_sprite.size);
-  for (let k = 4; k < CONFIG.tail_frames; k++) {
-    player_tail_sprite.position.copy(player_pos_history.get(k));
-    player_tail_sprite.size.mulSelf(0.85);
+  player_tail_sprite.size.copy(player_sprite.size.mul(0.5));
+  for (let k = 0; k < CONFIG.tail_frames; k++) {
+    let cur = player_pos_history.get(k);
+    player_tail_sprite.size.mulSelf(0.9);
+    player_tail_sprite.position.copy(cur[1]);
+    player_tail_sprite.color = new import_color.default(1, 1, 1, cur[0]);
     import_shaku.default.gfx.drawSprite(player_tail_sprite);
   }
-  time_until_store_pos -= dt;
-  if (time_until_store_pos <= 0) {
-    player_pos_history.removeBack();
-    player_pos_history.insertFront(player_pos.clone());
-    time_until_store_pos = 0.01;
-  }
+  player_pos_history.removeBack();
+  player_pos_history.insertFront([player_vel.length / 600, player_pos.sub(player_dir.mul(CONFIG.player_radius * 0.7))]);
   import_shaku.default.gfx.drawSprite(player_sprite);
   import_shaku.default.gfx.drawSprite(cursor_sprite);
   import_shaku.default.gfx.useEffect(null);

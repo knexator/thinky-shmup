@@ -607,9 +607,9 @@ let player_vel = Vector2.right.mulSelf(CONFIG.player_speed);
 let player_stun_time_remaining = 0;
 
 let time_until_store_pos = 0;
-let player_pos_history = new Deque(60);
+let player_pos_history = new Deque<[number, Vector2]>(60);
 while (player_pos_history.length < CONFIG.tail_frames) {
-    player_pos_history.insertFront(player_pos.clone());
+    player_pos_history.insertFront([0, Vector2.zero]);
 }
 
 let screen_shake_noise = new Perlin(Math.random());
@@ -1047,8 +1047,9 @@ function step() {
 
         if (time_since_dash < CONFIG.dash_duration) {
             // draw dash trail
-            player_tail_sprite.size.copy(player_sprite.size.mul(.85 * (1. - clamp(time_since_dash / CONFIG.dash_duration, 0, .5))))
+            player_tail_sprite.size.copy(player_sprite.size.mul(.85 * (1. - clamp(time_since_dash / CONFIG.dash_duration, 0, .5))));
             for (let k = 0; k < last_dash_dist; k += 4) {
+                player_tail_sprite.color = new Color(.65, .65, .65, clamp(k / last_dash_dist - .2 * (time_since_dash / CONFIG.dash_duration), 0, 1));
                 player_tail_sprite.position.copy(last_dash_pos.add(last_dash_dir.mul(k)));
                 Shaku.gfx!.drawSprite(player_tail_sprite);
             }
@@ -1165,18 +1166,23 @@ function step() {
         }
     }
 
-    player_tail_sprite.size.copy(player_sprite.size)
-    for (let k = 4; k < CONFIG.tail_frames; k++) {
-        player_tail_sprite.position.copy(player_pos_history.get(k));
-        player_tail_sprite.size.mulSelf(.85);
+    player_tail_sprite.size.copy(player_sprite.size.mul(.5))
+    for (let k = 0; k < CONFIG.tail_frames; k++) {
+        let cur = player_pos_history.get(k)!;
+        player_tail_sprite.size.mulSelf(.9);
+        player_tail_sprite.position.copy(cur[1]);
+        player_tail_sprite.color = new Color(1, 1, 1, cur[0]);
         Shaku.gfx!.drawSprite(player_tail_sprite);
+
     }
-    time_until_store_pos -= dt;
-    if (time_until_store_pos <= 0) {
-        player_pos_history.removeBack();
-        player_pos_history.insertFront(player_pos.clone());
-        time_until_store_pos = 0.01;
-    }
+    // time_until_store_pos -= dt;
+    // if (time_until_store_pos <= 0) {
+    player_pos_history.removeBack();
+    // player_pos_history.insertFront(player_inputing ? player_pos.sub(player_dir.mul(CONFIG.player_radius * .8)) : null);
+    player_pos_history.insertFront([player_vel.length / 600, player_pos.sub(player_dir.mul(CONFIG.player_radius * .7))]);
+    // console.log(player_vel.length);
+    //     time_until_store_pos = 0.01;
+    // }
 
     Shaku.gfx!.drawSprite(player_sprite);
     Shaku.gfx!.drawSprite(cursor_sprite);
