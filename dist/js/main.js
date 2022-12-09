@@ -10927,17 +10927,20 @@ document.body.appendChild(import_shaku.default.gfx.canvas);
 import_shaku.default.gfx.maximizeCanvasSize(false, false);
 var paused = false;
 var COLOR_BACKGROUND = new import_color.default(0.2, 0.195, 0.205);
-var cursor_texture = await loadAsciiTexture(`0`, [import_color.default.white]);
+var cursor_texture = await import_shaku.default.assets.loadTexture("imgs/cursor.png", { generateMipMaps: true });
+cursor_texture.filter = import_gfx.TextureFilterModes.Linear;
 var cursor_sprite = new import_shaku.default.gfx.Sprite(cursor_texture);
-cursor_sprite.size.mulSelf(10);
-var player_texture = await import_shaku.default.assets.loadTexture("imgs/player.png", { generateMipMaps: true });
-player_texture.filter = import_gfx.TextureFilterModes.Linear;
-var player_sprite = new import_shaku.default.gfx.Sprite(player_texture);
-player_sprite.size.mulSelf(CONFIG.player_radius / 50);
-var player_tail_sprite = new import_shaku.default.gfx.Sprite(player_texture);
-player_tail_sprite.color = new import_color.default(1, 1, 1, 0.5);
 var enemy_atlas_texture = await import_shaku.default.assets.loadTexture("imgs/enemies.png", { generateMipMaps: true });
 enemy_atlas_texture.filter = import_gfx.TextureFilterModes.Linear;
+var player_texture = await import_shaku.default.assets.loadTexture("imgs/player.png", { generateMipMaps: true });
+player_texture.filter = import_gfx.TextureFilterModes.Linear;
+var player_sprite = new import_shaku.default.gfx.Sprite(enemy_atlas_texture);
+player_sprite.setSourceFromSpritesheet(new import_vector2.default(2, 3), new import_vector2.default(3, 4), 0, true);
+player_sprite.size.mulSelf(CONFIG.player_radius / 50);
+var player_tail_texture = await import_shaku.default.assets.loadTexture("imgs/trail_particle.png", { generateMipMaps: true });
+player_tail_texture.filter = import_gfx.TextureFilterModes.Linear;
+var player_tail_sprite = new import_shaku.default.gfx.Sprite(player_tail_texture);
+player_tail_sprite.color = new import_color.default(1, 1, 1, 0.5);
 var enemy_texture = await import_shaku.default.assets.loadTexture("imgs/enemy.png", { generateMipMaps: true });
 enemy_texture.filter = import_gfx.TextureFilterModes.Linear;
 var enemy_hit_trail_sprite = new import_shaku.default.gfx.Sprite(enemy_texture);
@@ -11396,9 +11399,14 @@ function step() {
         last_dash_dist = first_hit.hit_dist;
       }
       let ray_end = last_dash_pos.add(last_dash_dir.mul(last_dash_dist));
-      import_shaku.default.gfx.drawLine(last_dash_pos, ray_end, import_color.default.white);
+      let perp_dir = last_dash_dir.rotatedDegrees(90).normalizeSelf().mul(CONFIG.ray_radius);
       if (first_hit !== null) {
-        import_shaku.default.gfx.outlineCircle(new import_circle.default(ray_end, CONFIG.ray_radius), import_color.default.white);
+        import_shaku.default.gfx.drawLine(last_dash_pos.add(perp_dir).add(last_dash_dir.mul(30)), ray_end.add(perp_dir), import_color.default.white);
+        import_shaku.default.gfx.drawLine(last_dash_pos.sub(perp_dir).add(last_dash_dir.mul(30)), ray_end.sub(perp_dir), import_color.default.white);
+        import_shaku.default.gfx.fillCircle(new import_circle.default(ray_end, CONFIG.ray_radius), import_color.default.white);
+      } else {
+        import_shaku.default.gfx.drawLines([last_dash_pos.add(perp_dir).add(last_dash_dir.mul(30)), ray_end.add(perp_dir)], [import_color.default.white, import_color.default.black]);
+        import_shaku.default.gfx.drawLines([last_dash_pos.sub(perp_dir).add(last_dash_dir.mul(30)), ray_end.sub(perp_dir)], [import_color.default.white, import_color.default.black]);
       }
       if (import_shaku.default.input.mousePressed()) {
         time_since_dash = 0;
@@ -11478,10 +11486,15 @@ function step() {
       }
     }
   }
+  let player_inputing = false;
   if (player_stun_time_remaining === 0) {
     let dx = (import_shaku.default.input.down("d") || import_shaku.default.input.down("right") ? 1 : 0) - (import_shaku.default.input.down("a") || import_shaku.default.input.down("left") ? 1 : 0);
     let dy = (import_shaku.default.input.down("s") || import_shaku.default.input.down("down") ? 1 : 0) - (import_shaku.default.input.down("w") || import_shaku.default.input.down("up") ? 1 : 0);
-    player_vel.addSelf(CONFIG.player_acc * dx * dt, CONFIG.player_acc * dy * dt);
+    let normalizer = Math.abs(dx) + Math.abs(dy) === 2 ? Math.SQRT1_2 : 1;
+    if (dx !== 0 || dy !== 0) {
+      player_inputing = true;
+    }
+    player_vel.addSelf(CONFIG.player_acc * dx * normalizer * dt, CONFIG.player_acc * dy * normalizer * dt);
     player_vel.mulSelf(1 / (1 + dt * CONFIG.player_friction));
     if (player_vel.length > 1) {
       player_dir = player_vel.normalized();
@@ -11547,7 +11560,7 @@ function step() {
     }
   }
   player_tail_sprite.size.copy(player_sprite.size);
-  for (let k = 0; k < CONFIG.tail_frames; k++) {
+  for (let k = 4; k < CONFIG.tail_frames; k++) {
     player_tail_sprite.position.copy(player_pos_history.get(k));
     player_tail_sprite.size.mulSelf(0.85);
     import_shaku.default.gfx.drawSprite(player_tail_sprite);
@@ -11564,34 +11577,6 @@ function step() {
   time_since_dash += import_shaku.default.gameTime.delta;
   import_shaku.default.endFrame();
   import_shaku.default.requestAnimationFrame(step);
-}
-async function loadAsciiTexture(ascii, colors) {
-  let rows = ascii.trim().split("\n").map((x) => x.trim());
-  console.log(rows);
-  let height = rows.length;
-  let width = rows[0].length;
-  let renderTarget = await import_shaku.default.assets.createRenderTarget(null, width, height, 4);
-  import_shaku.default.gfx.setRenderTarget(renderTarget, false);
-  for (let j = 0; j < height; j++) {
-    for (let i = 0; i < width; i++) {
-      let val = rows[j][i];
-      if (val === "." || val === " ")
-        continue;
-      let n = parseInt(val);
-      let col = colors[n];
-      if (typeof col === "string") {
-        col = import_shaku.default.utils.Color.fromHex(col);
-      }
-      import_shaku.default.gfx.fillRect(
-        new import_shaku.default.utils.Rectangle(i, height - j - 1, 1, 1),
-        col,
-        import_gfx.BlendModes.Opaque,
-        0
-      );
-    }
-  }
-  import_shaku.default.gfx.setRenderTarget(null, false);
-  return renderTarget;
 }
 function lerp(a, b, t) {
   return a * (1 - t) + b * t;
@@ -11642,6 +11627,7 @@ function bezier3(t, p0, p1, p2) {
 }
 document.getElementById("loading").style.opacity = "0";
 step();
+import_shaku.default.gfx.canvas.style.cursor = "none";
 /**
  * A utility to hold gametime.
  * 

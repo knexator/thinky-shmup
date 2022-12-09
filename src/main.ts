@@ -116,20 +116,24 @@ enum Ship {
 const COLOR_BACKGROUND = new Color(.2, .195, .205);
 
 // TODO: INIT STUFF AND LOAD ASSETS HERE
-let cursor_texture = await loadAsciiTexture(`0`, [Color.white]);
+let cursor_texture = await Shaku.assets.loadTexture("imgs/cursor.png", { generateMipMaps: true });
+cursor_texture.filter = TextureFilterModes.Linear;
 let cursor_sprite = new Shaku.gfx!.Sprite(cursor_texture);
-cursor_sprite.size.mulSelf(10);
-
-let player_texture = await Shaku.assets.loadTexture("imgs/player.png", { generateMipMaps: true });
-player_texture.filter = TextureFilterModes.Linear;
-let player_sprite = new Shaku.gfx!.Sprite(player_texture);
-player_sprite.size.mulSelf(CONFIG.player_radius / 50);
-// player_sprite.color = Color.black;
-let player_tail_sprite = new Shaku.gfx!.Sprite(player_texture);
-player_tail_sprite.color = new Color(1, 1, 1, .5);
+// cursor_sprite.color = new Color(1, 1, 1, .75);
 
 let enemy_atlas_texture = await Shaku.assets.loadTexture("imgs/enemies.png", { generateMipMaps: true });
 enemy_atlas_texture.filter = TextureFilterModes.Linear;
+
+let player_texture = await Shaku.assets.loadTexture("imgs/player.png", { generateMipMaps: true });
+player_texture.filter = TextureFilterModes.Linear;
+let player_sprite = new Shaku.gfx!.Sprite(enemy_atlas_texture);
+player_sprite.setSourceFromSpritesheet(new Vector2(2, 3), new Vector2(3, 4), 0, true);
+player_sprite.size.mulSelf(CONFIG.player_radius / 50);
+// player_sprite.color = Color.black;
+let player_tail_texture = await Shaku.assets.loadTexture("imgs/trail_particle.png", { generateMipMaps: true });
+player_tail_texture.filter = TextureFilterModes.Linear;
+let player_tail_sprite = new Shaku.gfx!.Sprite(player_tail_texture);
+player_tail_sprite.color = new Color(1, 1, 1, .5);
 
 let enemy_texture = await Shaku.assets.loadTexture("imgs/enemy.png", { generateMipMaps: true });
 enemy_texture.filter = TextureFilterModes.Linear;
@@ -937,9 +941,21 @@ function step() {
                 last_dash_dist = first_hit.hit_dist;
             }
             let ray_end = last_dash_pos.add(last_dash_dir.mul(last_dash_dist));
-            Shaku.gfx.drawLine(last_dash_pos, ray_end, Color.white);
+            let perp_dir = last_dash_dir.rotatedDegrees(90).normalizeSelf().mul(CONFIG.ray_radius);
             if (first_hit !== null) {
-                Shaku.gfx.outlineCircle(new Circle(ray_end, CONFIG.ray_radius), Color.white);
+                Shaku.gfx.drawLine(last_dash_pos.add(perp_dir).add(last_dash_dir.mul(30)), ray_end.add(perp_dir), Color.white);
+                Shaku.gfx.drawLine(last_dash_pos.sub(perp_dir).add(last_dash_dir.mul(30)), ray_end.sub(perp_dir), Color.white);
+                Shaku.gfx.fillCircle(new Circle(ray_end, CONFIG.ray_radius), Color.white);
+            } else {
+                Shaku.gfx.drawLines([last_dash_pos.add(perp_dir).add(last_dash_dir.mul(30)), ray_end.add(perp_dir)], [Color.white, Color.black]);
+                Shaku.gfx.drawLines([last_dash_pos.sub(perp_dir).add(last_dash_dir.mul(30)), ray_end.sub(perp_dir)], [Color.white, Color.black]);
+                /*for (let k = 0; k < 10; k++) {
+                    const element = array[k];
+                    
+                }*/
+                // let lines = [new Shaku.utils.Vector2(50, 50), new Shaku.utils.Vector2(500, 150), new Shaku.utils.Vector2(500, 150)];
+                // let colors = [Color.cyan, Color.magenta, Color.yellow];
+                // Shaku.gfx.drawLines(lines, colors);
             }
 
             if (Shaku.input.mousePressed()) {
@@ -1039,13 +1055,18 @@ function step() {
         }
     }
 
+    let player_inputing = false;
     if (player_stun_time_remaining === 0) {
         // Keyboard controls
         let dx = ((Shaku.input.down("d") || Shaku.input.down("right")) ? 1 : 0) - ((Shaku.input.down("a") || Shaku.input.down("left")) ? 1 : 0);
         let dy = ((Shaku.input.down("s") || Shaku.input.down("down")) ? 1 : 0) - ((Shaku.input.down("w") || Shaku.input.down("up")) ? 1 : 0);
         // player_vel.set(dx, dy);    
         // player_vel.mulSelf(CONFIG.player_speed);
-        player_vel.addSelf(CONFIG.player_acc * dx * dt, CONFIG.player_acc * dy * dt);
+        let normalizer = (Math.abs(dx) + Math.abs(dy)) === 2 ? Math.SQRT1_2 : 1
+        if (dx !== 0 || dy !== 0) {
+            player_inputing = true;
+        }
+        player_vel.addSelf(CONFIG.player_acc * dx * normalizer * dt, CONFIG.player_acc * dy * normalizer * dt);
         player_vel.mulSelf(1 / (1 + (dt * CONFIG.player_friction)));
         if (player_vel.length > 1) {
             player_dir = player_vel.normalized();
@@ -1145,7 +1166,7 @@ function step() {
     }
 
     player_tail_sprite.size.copy(player_sprite.size)
-    for (let k = 0; k < CONFIG.tail_frames; k++) {
+    for (let k = 4; k < CONFIG.tail_frames; k++) {
         player_tail_sprite.position.copy(player_pos_history.get(k));
         player_tail_sprite.size.mulSelf(.85);
         Shaku.gfx!.drawSprite(player_tail_sprite);
@@ -1336,3 +1357,5 @@ document.getElementById("loading")!.style.opacity = "0";
 // start main loop
 step();
 
+// todo: "click to start"
+Shaku.gfx.canvas.style.cursor = "none";
