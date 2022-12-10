@@ -10855,7 +10855,7 @@ var CONFIG = {
   post_merge_speed: 750,
   player_speed: 355,
   enemy_speed: 150,
-  min_enemy_dist: 150,
+  min_enemy_dist: 200,
   separation_strength: 250,
   dash_duration: 0.07,
   dash_cooldown: 0.4,
@@ -11619,6 +11619,7 @@ function step() {
     import_shaku.default.gfx.drawSprite(cursor_sprite);
     if (cur_level_n === -1) {
       if (import_shaku.default.input.pressed("space") || import_shaku.default.input.mousePressed() && (menu_vertical < 2 || menu_horizontal === 0)) {
+        document.querySelector("audio").play();
         cur_level_n = menu_level_n;
         loadLevel(cur_level_n);
         paused = false;

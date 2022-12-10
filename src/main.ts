@@ -22,7 +22,7 @@ const CONFIG = {
     post_merge_speed: 750,
     player_speed: 355, // 2.25s to cross the 800px screen
     enemy_speed: 150, // about half?
-    min_enemy_dist: 150,
+    min_enemy_dist: 200,
     separation_strength: 250,
     dash_duration: 0.07,
     dash_cooldown: .4,
@@ -91,6 +91,8 @@ gui.add(CONFIG, "debug_steer", 0, 1);
 gui.add(CONFIG, "bullet_speed", 0, 1000);
 gui.add(CONFIG, "turret_delay", 0, 10);
 gui.hide();
+
+// music from https://www.youtube.com/watch?v=Vpe2Gotlfaw
 
 // init shaku
 Shaku.input.setTargetElement(() => Shaku.gfx.canvas)
@@ -1224,6 +1226,7 @@ function step() {
 
         if (cur_level_n === -1) {
             if (Shaku.input.pressed("space") || (Shaku.input.mousePressed() && (menu_vertical < 2 || menu_horizontal === 0))) {
+                document.querySelector("audio")!.play();
                 cur_level_n = menu_level_n;
                 loadLevel(cur_level_n);
                 paused = false;
