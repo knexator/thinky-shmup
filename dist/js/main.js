@@ -4,8 +4,8 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __commonJS = (cb, mod2) => function __require() {
-  return mod2 || (0, cb[__getOwnPropNames(cb)[0]])((mod2 = { exports: {} }).exports, mod2), mod2.exports;
+var __commonJS = (cb, mod) => function __require() {
+  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -15,9 +15,9 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
-var __toESM = (mod2, isNodeMode, target) => (target = mod2 != null ? __create(__getProtoOf(mod2)) : {}, __copyProps(
-  isNodeMode || !mod2 || !mod2.__esModule ? __defProp(target, "default", { value: mod2, enumerable: true }) : target,
-  mod2
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
 ));
 
 // ../Shaku/lib/manager.js
@@ -10855,7 +10855,7 @@ var CONFIG = {
   post_merge_speed: 750,
   player_speed: 355,
   enemy_speed: 150,
-  min_enemy_dist: 120,
+  min_enemy_dist: 150,
   separation_strength: 250,
   dash_duration: 0.07,
   dash_cooldown: 0.4,
@@ -10863,22 +10863,22 @@ var CONFIG = {
   tail_frames: 20,
   dash_dist: 200,
   player_turn_speed_radians: 3,
-  enemy_radius: 25,
+  enemy_radius: 35,
   enemy_throwback_dist: 50,
   enemy_throwback_speed: 700,
   enemy_second_hit_dist: 120,
-  enemy_acc: 360,
-  enemy_friction: 3,
+  enemy_acc: 600,
+  enemy_friction: 2.5,
   dodge_acc: 1500,
   dodge_prevision_time: 0.5,
   dodge_prevision_dot: 0.15,
   invincible_time: 0.3,
-  player_acc: 5e3,
+  player_acc: 8e3,
   player_friction: 12,
   grab_dist: 20,
   ray_radius: 10,
   dash_hit_duration: 0.25,
-  player_radius: 25,
+  player_radius: 30,
   dash_dir_override: 5,
   screen_shake_size: 33,
   screen_shake_speed: 21,
@@ -10972,8 +10972,8 @@ background_texture.wrapMode = import_gfx.TextureWrapModes.Repeat;
 var FULL_SCREEN_SPRITE = new import_sprite.default(import_shaku.default.gfx.whiteTexture);
 FULL_SCREEN_SPRITE.origin = import_vector2.default.zero;
 FULL_SCREEN_SPRITE.size = import_shaku.default.gfx.getCanvasSize();
-var board_h = FULL_SCREEN_SPRITE.size.y * 0.8;
-var board_w = FULL_SCREEN_SPRITE.size.y * (4 / 3 - 0.2);
+var board_h = FULL_SCREEN_SPRITE.size.y * 0.8 - 10;
+var board_w = FULL_SCREEN_SPRITE.size.y * (4 / 3 - 0.2) - 10;
 var board_area = new import_rectangle.default(FULL_SCREEN_SPRITE.size.x / 2 - board_w / 2, FULL_SCREEN_SPRITE.size.y / 2 - board_h / 2, board_w, board_h);
 var background_effect = import_shaku.default.gfx.createEffect(BackgroundEffect);
 import_shaku.default.gfx.useEffect(background_effect);
@@ -11051,13 +11051,18 @@ var Enemy = class {
     this.pos = pos;
     this.sprite = new import_shaku.default.gfx.Sprite(enemy_atlas_texture);
     this.sprite.size.mulSelf(CONFIG.enemy_radius / 50);
-    this.dir = import_vector2.default.right;
+    this.dir = import_vector2.default.random;
     this.vel = import_vector2.default.zero;
     this.steer = Array(CONFIG.steer_resolution).fill(0);
     this.sprite.position = pos;
     this.ship_type = 0 /* C */;
     this.setType(this.ship_type);
     this.flying = false;
+    this.friction = 1;
+    this.acc = 1;
+    this.hoverForce = 1;
+    this.dodgeForce = 1;
+    this.dodgeTime = 1;
   }
   sprite;
   vel;
@@ -11065,6 +11070,11 @@ var Enemy = class {
   steer;
   ship_type;
   flying;
+  friction;
+  acc;
+  hoverForce;
+  dodgeForce;
+  dodgeTime;
   setType(x) {
     this.ship_type = x;
     setSpriteToType(this.sprite, x);
@@ -11090,14 +11100,14 @@ var Enemy = class {
       let delta_dir = delta.normalized();
       if (delta_len < CONFIG.min_enemy_dist) {
         addSteer(this.steer, (v) => {
-          return (1 - Math.abs(import_vector2.default.dot(v, delta_dir) - 0.65)) * CONFIG.separation_strength * lerp(2, 0, delta_len / CONFIG.min_enemy_dist);
+          return (1 - Math.abs(import_vector2.default.dot(v, delta_dir) - 0.65)) * this.hoverForce * CONFIG.separation_strength * lerp(2, 0, delta_len / CONFIG.min_enemy_dist);
         });
       }
       let other_speed = other.vel.length;
       let other_dir = other.vel.mul(1 / other_speed);
       if (other_speed > this.vel.length * 1.5 && import_vector2.default.dot(delta_dir, other.vel.normalized()) > CONFIG.dodge_prevision_dot) {
         let remaining_time = delta_len / other_speed;
-        if (remaining_time < CONFIG.dodge_prevision_time) {
+        if (remaining_time < CONFIG.dodge_prevision_time * this.dodgeTime) {
           let closest_dist_along_ray = import_vector2.default.dot(other_dir, delta);
           let closest_point_along_ray = other_dir.mul(closest_dist_along_ray).subSelf(delta);
           if (closest_point_along_ray.length < CONFIG.enemy_radius * 3) {
@@ -11105,9 +11115,9 @@ var Enemy = class {
             addSteer(this.steer, (v) => {
               let dot = import_vector2.default.dot(v, dodge_dir);
               if (dot > 0.5) {
-                return (dot - 0.5) * 2 * CONFIG.dodge_acc;
+                return (dot - 0.5) * 2 * CONFIG.dodge_acc * this.dodgeForce;
               } else if (dot < -0.5) {
-                return (dot + 0.5) * 2 * CONFIG.dodge_acc;
+                return (dot + 0.5) * 2 * CONFIG.dodge_acc * this.dodgeForce;
               } else {
                 return 0;
               }
@@ -11119,7 +11129,7 @@ var Enemy = class {
   }
   endUpdate(dt) {
     this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
-    this.vel.mulSelf(1 / (1 + dt * CONFIG.enemy_friction));
+    this.vel.mulSelf(1 / (1 + dt * this.friction * CONFIG.enemy_friction));
     this.pos.addSelf(this.vel.mul(dt));
     this.bounce();
     if (this.vel.x !== 0 || this.vel.y !== 0) {
@@ -11143,40 +11153,13 @@ var Enemy = class {
   }
   update(dt) {
     this.steer.fill(0);
-    this.steer_chasePlayer(CONFIG.enemy_acc);
+    this.steer_chasePlayer(CONFIG.enemy_acc * this.acc);
     this.steer_hoverAndDodge();
     this.endUpdate(dt);
   }
   draw() {
     this.sprite.rotation = this.dir.getRadians();
     import_shaku.default.gfx.drawSprite(this.sprite);
-  }
-};
-var DelayedEnemy = class extends Enemy {
-  cur_goal;
-  constructor(pos) {
-    super(pos);
-    this.cur_goal = null;
-  }
-  update(dt) {
-    this.steer.fill(0);
-    if (this.cur_goal === null) {
-      let delta = player_pos.sub(this.pos);
-      this.dir = rotateTowards(this.dir, delta, CONFIG.delayed_rot_speed * dt);
-      if (Math.abs(radiansBetween(this.dir, delta.normalized())) <= 1e-4) {
-        this.cur_goal = player_pos.clone();
-      }
-    } else {
-      this.steer_chaseDir(this.dir, CONFIG.enemy_speed * 30);
-      if (import_vector2.default.dot(this.dir, this.cur_goal.sub(this.pos)) <= 0) {
-        this.cur_goal = null;
-      }
-    }
-    this.steer_hoverAndDodge();
-    this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
-    this.vel.mulSelf(1 / (1 + dt * CONFIG.enemy_friction * 3));
-    this.pos.addSelf(this.vel.mul(dt));
-    this.bounce();
   }
 };
 var time_since_dash = Infinity;
@@ -11279,24 +11262,30 @@ function updateCompletedTargets() {
     }
   });
 }
-addEventListener("resize", (event) => {
-  import_shaku.default.gfx.maximizeCanvasSize(false, false);
-  FULL_SCREEN_SPRITE.size = import_shaku.default.gfx.getCanvasSize();
-  import_shaku.default.gfx.useEffect(background_effect);
-  background_effect.uniforms["u_aspect_ratio"](FULL_SCREEN_SPRITE.size.x / FULL_SCREEN_SPRITE.size.y);
-  import_shaku.default.gfx.useEffect(null);
-});
 function fastSpawnEnemy(x, pos) {
   let enemy_class = Enemy;
-  switch (x) {
-    case 9 /* P1 */:
-      enemy_class = DelayedEnemy;
-      break;
-    default:
-      break;
-  }
   let enemy = new enemy_class(pos);
   enemy.setType(x);
+  switch (x) {
+    case 0 /* C */:
+    case 1 /* M */:
+    case 2 /* Y */:
+      enemy.friction = 1.25;
+      enemy.acc = 1.25;
+      break;
+    case 10 /* P2 */:
+      enemy.friction = 1;
+      enemy.acc = 1;
+      break;
+    case 9 /* P1 */:
+      enemy.friction = 2;
+      enemy.acc = 1;
+      break;
+    default:
+      enemy.friction = 0.5;
+      enemy.acc = 0.9;
+      break;
+  }
   enemies.push(enemy);
   return enemy;
 }
@@ -11713,6 +11702,9 @@ function step() {
             CONFIG.enemy_radius,
             first_hit.hit_enemy
           );
+          if (second_hit !== null) {
+            second_hit.hit_dist -= CONFIG.enemy_radius / 2;
+          }
           if (second_hit === null || wall_collision_time < second_hit.hit_dist) {
             if (wall_collision_time < Infinity) {
               first_hit.hit_enemy.pos.addSelf(second_ray_dir.mul(wall_collision_time));
@@ -11826,19 +11818,6 @@ function clamp(value, a, b) {
   if (value > b)
     return b;
   return value;
-}
-function mod(n, m) {
-  return (n % m + m) % m;
-}
-function radiansBetween(a, b) {
-  let radians = b.getRadians() - a.getRadians();
-  let eps = 0.01;
-  return mod(radians + Math.PI + eps, Math.PI * 2) - Math.PI + eps;
-}
-function rotateTowards(cur_val, target_val, max_radians) {
-  let radians = radiansBetween(cur_val, target_val);
-  radians = clamp(radians, -max_radians, max_radians);
-  return cur_val.rotatedRadians(radians);
 }
 function argmax(vals) {
   if (vals.length === 0) {

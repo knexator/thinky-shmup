@@ -20,7 +20,7 @@ const CONFIG = {
     post_merge_speed: 750,
     player_speed: 355, // 2.25s to cross the 800px screen
     enemy_speed: 150, // about half?
-    min_enemy_dist: 120,
+    min_enemy_dist: 150,
     separation_strength: 250,
     dash_duration: 0.07,
     dash_cooldown: .4,
@@ -28,22 +28,22 @@ const CONFIG = {
     tail_frames: 20,
     dash_dist: 200,
     player_turn_speed_radians: 3,
-    enemy_radius: 25,
+    enemy_radius: 35,
     enemy_throwback_dist: 50,
     enemy_throwback_speed: 700,
     enemy_second_hit_dist: 120, // a bit more than throwback dist, to account for speed
-    enemy_acc: 360,
-    enemy_friction: 3,
+    enemy_acc: 600,
+    enemy_friction: 2.5,
     dodge_acc: 1500,
     dodge_prevision_time: .5,
     dodge_prevision_dot: .15,
     invincible_time: .3,
-    player_acc: 5000,
+    player_acc: 8000,
     player_friction: 12,
     grab_dist: 20,
     ray_radius: 10,
     dash_hit_duration: 0.25, // freeze screen for extra effect
-    player_radius: 25,
+    player_radius: 30,
     dash_dir_override: 5,
     screen_shake_size: 33,
     screen_shake_speed: 21,
@@ -184,8 +184,8 @@ const FULL_SCREEN_SPRITE = new Sprite(Shaku.gfx.whiteTexture);
 FULL_SCREEN_SPRITE.origin = Vector2.zero;
 FULL_SCREEN_SPRITE.size = Shaku.gfx.getCanvasSize();
 
-let board_h = FULL_SCREEN_SPRITE.size.y * .8;
-let board_w = FULL_SCREEN_SPRITE.size.y * (4 / 3 - .2);
+let board_h = FULL_SCREEN_SPRITE.size.y * .8 - 10; // enemy radius hack thing
+let board_w = FULL_SCREEN_SPRITE.size.y * (4 / 3 - .2) - 10;
 let board_area = new Rectangle(FULL_SCREEN_SPRITE.size.x / 2 - board_w / 2, FULL_SCREEN_SPRITE.size.y / 2 - board_h / 2, board_w, board_h);
 
 // let grunge_r_texture = await Shaku.assets.loadTexture("imgs/grunge_r.png", { generateMipMaps: true });
@@ -340,12 +340,17 @@ class Enemy {
     public steer: number[]
     public ship_type: Ship
     public flying: boolean
+    public friction: number
+    public acc: number
+    public hoverForce: number
+    public dodgeForce: number
+    public dodgeTime: number
     constructor(
         public pos: Vector2,
     ) {
         this.sprite = new Shaku.gfx!.Sprite(enemy_atlas_texture);
         this.sprite.size.mulSelf(CONFIG.enemy_radius / 50);
-        this.dir = Vector2.right;
+        this.dir = Vector2.random;
         this.vel = Vector2.zero;
         this.steer = Array(CONFIG.steer_resolution).fill(0);
 
@@ -353,6 +358,11 @@ class Enemy {
         this.ship_type = Ship.C;
         this.setType(this.ship_type);
         this.flying = false;
+        this.friction = 1;
+        this.acc = 1;
+        this.hoverForce = 1;
+        this.dodgeForce = 1;
+        this.dodgeTime = 1;
     }
 
     setType(x: Ship) {
@@ -384,7 +394,7 @@ class Enemy {
             // try to hover at a CONFIG.min_enemy_dist distance
             if (delta_len < CONFIG.min_enemy_dist) {
                 addSteer(this.steer, v => {
-                    return (1.0 - Math.abs(Vector2.dot(v, delta_dir) - .65)) * CONFIG.separation_strength * lerp(2, 0, delta_len / CONFIG.min_enemy_dist);
+                    return (1.0 - Math.abs(Vector2.dot(v, delta_dir) - .65)) * this.hoverForce * CONFIG.separation_strength * lerp(2, 0, delta_len / CONFIG.min_enemy_dist);
                 })
             }
 
@@ -395,7 +405,7 @@ class Enemy {
             if (other_speed > this.vel.length * 1.5 && Vector2.dot(delta_dir, other.vel.normalized()) > CONFIG.dodge_prevision_dot) {
                 // time until impact, only taking other enemy into account
                 let remaining_time = delta_len / other_speed;
-                if (remaining_time < CONFIG.dodge_prevision_time) {
+                if (remaining_time < CONFIG.dodge_prevision_time * this.dodgeTime) {
                     let closest_dist_along_ray = Vector2.dot(other_dir, delta);
                     let closest_point_along_ray = other_dir.mul(closest_dist_along_ray).subSelf(delta);
                     if (closest_point_along_ray.length < CONFIG.enemy_radius * 3) {
@@ -403,9 +413,9 @@ class Enemy {
                         addSteer(this.steer, v => {
                             let dot = Vector2.dot(v, dodge_dir);
                             if (dot > .5) {
-                                return (dot - .5) * 2 * CONFIG.dodge_acc;
+                                return (dot - .5) * 2 * CONFIG.dodge_acc * this.dodgeForce;
                             } else if (dot < -.5) {
-                                return (dot + .5) * 2 * CONFIG.dodge_acc;
+                                return (dot + .5) * 2 * CONFIG.dodge_acc * this.dodgeForce;
                             } else {
                                 return 0;
                             }
@@ -420,7 +430,7 @@ class Enemy {
 
     endUpdate(dt: number) {
         this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
-        this.vel.mulSelf(1 / (1 + (dt * CONFIG.enemy_friction)));
+        this.vel.mulSelf(1 / (1 + (dt * this.friction * CONFIG.enemy_friction)));
         this.pos.addSelf(this.vel.mul(dt));
         this.bounce();
         if (this.vel.x !== 0 || this.vel.y !== 0) {
@@ -447,7 +457,7 @@ class Enemy {
     update(dt: number) {
         this.steer.fill(0);
 
-        this.steer_chasePlayer(CONFIG.enemy_acc);
+        this.steer_chasePlayer(CONFIG.enemy_acc * this.acc);
         this.steer_hoverAndDodge();
 
         this.endUpdate(dt);
@@ -461,6 +471,23 @@ class Enemy {
         //         Vector2.fromRadians(Math.PI * 2 * k / CONFIG.steer_resolution).mulSelf(CONFIG.debug_steer * Math.abs(this.steer[k]))
         //     ), this.steer[k] >= 0 ? Color.green : Color.red);
         // }
+    }
+}
+
+class ZombieEnemy extends Enemy {
+    constructor(pos: Vector2) {
+        super(pos);
+        this.friction = .4;
+        this.acc = 1.5;
+    }
+
+    update(dt: number) {
+        this.steer.fill(0);
+
+        this.steer_chaseDir(this.dir, CONFIG.enemy_acc * this.acc);
+        this.steer_hoverAndDodge();
+
+        this.endUpdate(dt);
     }
 }
 
@@ -502,11 +529,17 @@ class DelayedEnemy extends Enemy {
 }
 
 class SpiralMoveEnemy extends Enemy {
+    constructor(pos: Vector2) {
+        super(pos);
+        this.friction = 1.0;
+        this.acc = 2.0;
+    }
+
     update(dt: number): void {
         this.steer.fill(0);
         let delta = player_pos.sub(this.pos);
         let perp = delta.rotatedDegrees(90).mulSelf(.5);
-        this.steer_chaseDir(Vector2.lerp(delta, perp, .7).normalizeSelf(), CONFIG.enemy_acc * 2);
+        this.steer_chaseDir(Vector2.lerp(delta, perp, .7).normalizeSelf(), CONFIG.enemy_acc * this.acc);
 
         // moveTowardsV(perp, delta, 50).normalizeSelf()
         // this.steer_chaseDir(player_pos.sub(this.pos).rotatedDegrees(50).normalizeSelf(), CONFIG.enemy_acc * 2);
@@ -748,29 +781,61 @@ function updateCompletedTargets() {
     });
 }
 
-addEventListener("resize", (event) => {
-    // todo: resize many other things
-    Shaku.gfx!.maximizeCanvasSize(false, false);
-    FULL_SCREEN_SPRITE.size = Shaku.gfx.getCanvasSize();
-    Shaku.gfx.useEffect(background_effect);
-    // @ts-ignore
-    background_effect.uniforms["u_aspect_ratio"](FULL_SCREEN_SPRITE.size.x / FULL_SCREEN_SPRITE.size.y);
-    // @ts-ignore
-    Shaku.gfx.useEffect(null);
-});
+// addEventListener("resize", (event) => {
+//     // todo: resize everything
+//     Shaku.gfx!.maximizeCanvasSize(false, false);
+//     FULL_SCREEN_SPRITE.size = Shaku.gfx.getCanvasSize();
+//     Shaku.gfx.useEffect(background_effect);
+//     // @ts-ignore
+//     background_effect.uniforms["u_aspect_ratio"](FULL_SCREEN_SPRITE.size.x / FULL_SCREEN_SPRITE.size.y);
+//     // @ts-ignore
+//     Shaku.gfx.useEffect(null);
+// });
 
 function fastSpawnEnemy(x: Ship, pos: Vector2) {
     let enemy_class = Enemy;
-    switch (x) {
-        case Ship.P1:
-            enemy_class = DelayedEnemy;
-            break;
-
-        default:
-            break;
-    }
+    // switch (x) {
+    //     case Ship.C:
+    //     case Ship.M:
+    //     case Ship.Y:
+    //         enemy_class = Enemy;
+    //         break;
+    //     case Ship.P2:
+    //         enemy_class = Enemy;
+    //         break;
+    //     case Ship.P1:
+    //         enemy_class = Enemy;
+    //         break;
+    //     default:
+    //         enemy_class = Enemy;
+    //         break;
+    // }
     let enemy = new enemy_class(pos);
     enemy.setType(x);
+    switch (x) {
+        case Ship.C:
+        case Ship.M:
+        case Ship.Y:
+            // fast, constantly near
+            enemy.friction = 1.25;
+            enemy.acc = 1.25;
+            break;
+        case Ship.P2:
+            // vanilla
+            enemy.friction = 1;
+            enemy.acc = 1;
+            break;
+        case Ship.P1:
+            // slow
+            enemy.friction = 2;
+            enemy.acc = 1.0;
+            break;
+        default:
+            // fast but takes a while to change direction
+            enemy.friction = .5;
+            enemy.acc = 0.9;
+            break;
+    }
     enemies.push(enemy);
     return enemy;
 }
@@ -1274,6 +1339,9 @@ function step() {
                         CONFIG.enemy_radius,
                         first_hit.hit_enemy
                     );
+                    if (second_hit !== null) {
+                        second_hit.hit_dist -= CONFIG.enemy_radius / 2; // wtf
+                    }
 
                     // first_hit.hit_enemy.pos.addSelf(second_ray_dir.mul(CONFIG.enemy_throwback_dist));
                     // first_hit.hit_enemy.vel.addSelf(second_ray_dir.mul(CONFIG.enemy_throwback_speed));
@@ -1292,6 +1360,10 @@ function step() {
                     } else {
                         // let hitter_new_vel = second_ray_dir
                         first_hit.hit_enemy.pos.addSelf(second_ray_dir.mul(second_hit.hit_dist))
+                        // console.log(Vector2.distance(first_hit.hit_enemy.pos, second_hit.hit_enemy.pos));
+                        // first_hit.hit_enemy.vel.set(0, 0);
+                        // second_hit.hit_enemy.vel.set(0, 0);
+                        // console.log("SPRITE thing: ", Vector2.distance(first_hit.hit_enemy.pos, first_hit.hit_enemy.sprite.position as Vector2));
                         let hit_to_hitter = second_hit.hit_enemy.pos.sub(first_hit.hit_enemy.pos).normalizeSelf();
                         // let hitter_new_vel = second_ray_dir.sub(hit_to_hitter.mul(Vector2.dot(hit_to_hitter, second_ray_dir)));
                         // let hitted_new_vel = second_ray_dir.sub(hitter_new_vel);
