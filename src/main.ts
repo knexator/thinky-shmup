@@ -1070,7 +1070,18 @@ function drawGame() {
         }
         cur_hit.hitter.sprite.size.copy(original_size);
         cur_hit.hitter.sprite.color = Color.white;
-    }
+    } /*else if (time_since_dash < CONFIG.dash_duration && last_dash_hit_enemy) {
+        // draw enemy hit trail
+        let original_size = last_dash_hit_enemy.sprite.size.clone();
+        last_dash_hit_enemy.sprite.size.copy(player_sprite.size.mul(.85));
+        for (let k = last_enemy_dash_dist * .5; k < last_enemy_dash_dist * 1.25; k += 4) {
+            last_dash_hit_enemy.sprite.color = new Color(.65, .65, .65, clamp(k / (1.5 * last_enemy_dash_dist) - .2 * (time_since_dash / CONFIG.dash_duration), 0, 1));
+            last_dash_hit_enemy.sprite.position.copy(last_enemy_dash_pos.add(last_enemy_dash_dir.mul(k)));
+            Shaku.gfx!.drawSprite(last_dash_hit_enemy.sprite);
+        }
+        last_dash_hit_enemy.sprite.size.copy(original_size);
+        last_dash_hit_enemy.sprite.color = Color.white;
+    }*/
 
     target_types_sprites.forEach(x => Shaku.gfx.drawSprite(x));
     outdated_types_sprites.forEach(x => Shaku.gfx.drawSprite(x));
