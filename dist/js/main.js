@@ -10949,7 +10949,7 @@ var COLOR_BACKGROUND = new import_color.default(0.2, 0.195, 0.205);
 var logo_font = await import_shaku.default.assets.loadMsdfFontTexture("fonts/ZenDots.ttf", { jsonUrl: "fonts/ZenDots.json", textureUrl: "fonts/ZenDots.png" });
 var cursor_texture = await import_shaku.default.assets.loadTexture("imgs/cursor.png", { generateMipMaps: true });
 cursor_texture.filter = import_gfx.TextureFilterModes.Linear;
-var cursor_sprite = new import_shaku.default.gfx.Sprite(cursor_texture);
+var cursor_sprite = new import_sprite.default(cursor_texture);
 cursor_sprite.size.mulSelf(SCALING);
 var enemy_atlas_texture = await import_shaku.default.assets.loadTexture("imgs/enemies.png", { generateMipMaps: true });
 enemy_atlas_texture.filter = import_gfx.TextureFilterModes.Linear;
@@ -11209,9 +11209,11 @@ for (let k = 0; k < levels.length; k++) {
 var arrow_right_text = import_shaku.default.gfx.buildText(logo_font, ">", 54 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
 arrow_right_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.75);
 arrow_right_text.position.x += SCALING * 175;
+var arrow_right_text_x = arrow_right_text.position.x;
 var arrow_left_text = import_shaku.default.gfx.buildText(logo_font, "<", 54 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
 arrow_left_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.75);
 arrow_left_text.position.x -= SCALING * 175;
+var arrow_left_text_x = arrow_left_text.position.x;
 var pause_menu_types_sprites = levels.map(([initial, target]) => {
   let res = [];
   initial.forEach((x, k) => {
@@ -11425,14 +11427,14 @@ function step() {
       import_shaku.default.gfx.useEffect(null);
     }
     updateAnimators(import_shaku.default.gameTime.delta * 2);
-    let mouse_hor = 0;
+    let menu_horizontal = 0;
     if (cursor_sprite.position.x > import_shaku.default.gfx.getCanvasSize().x / 2 + 160 * SCALING) {
-      mouse_hor = 1;
+      menu_horizontal = 1;
     } else if (cursor_sprite.position.x < import_shaku.default.gfx.getCanvasSize().x / 2 - 160 * SCALING) {
-      mouse_hor = -1;
+      menu_horizontal = -1;
     }
     if (menu_vertical === 2 && menu_level_n < levels.length - 1) {
-      if (import_shaku.default.input.pressed(["right", "d"]) || import_shaku.default.input.mousePressed() && mouse_hor === 1) {
+      if (import_shaku.default.input.pressed(["right", "d"]) || import_shaku.default.input.mousePressed() && menu_horizontal === 1) {
         menu_level_n += 1;
         level_n_text[menu_level_n].scale.x = Math.random() * 0.1 + 1.1;
         level_n_text[menu_level_n].scale.y = level_n_text[menu_level_n].scale.x;
@@ -11441,7 +11443,7 @@ function step() {
       }
     }
     if (menu_vertical === 2 && menu_level_n > 0) {
-      if (import_shaku.default.input.pressed(["left", "a"]) || import_shaku.default.input.mousePressed() && mouse_hor === -1) {
+      if (import_shaku.default.input.pressed(["left", "a"]) || import_shaku.default.input.mousePressed() && menu_horizontal === -1) {
         menu_level_n -= 1;
         level_n_text[menu_level_n].scale.x = Math.random() * 0.2 + 1.1;
         level_n_text[menu_level_n].scale.y = level_n_text[menu_level_n].scale.x;
@@ -11456,7 +11458,7 @@ function step() {
       menu_vertical = Math.min(menu_vertical + 1, 2);
     }
     if (import_shaku.default.input.mouseMoving) {
-      menu_vertical = cursor_sprite.position.y * SCALING < 610 ? 0 : cursor_sprite.position.y * SCALING < 745 ? 1 : 2;
+      menu_vertical = cursor_sprite.position.y * SCALING < 565 ? 0 : cursor_sprite.position.y * SCALING < 695 ? 1 : 2;
     }
     let scale = Math.sin(import_shaku.default.gameTime.elapsed * 6) * 0.03 + 1;
     import_shaku.default.gfx.useEffect(import_gfx.builtinEffects.MsdfFont);
@@ -11479,10 +11481,17 @@ function step() {
       import_shaku.default.gfx.drawGroup(continue_text, false);
       import_shaku.default.gfx.drawGroup(restart_text, false);
     }
+    level_n_text[menu_level_n].scale.set(1, 1);
+    arrow_right_text.position.x = arrow_right_text_x;
+    arrow_left_text.position.x = arrow_left_text_x;
     if (menu_vertical === 2) {
-      level_n_text[menu_level_n].scale.set(scale, scale);
-    } else {
-      level_n_text[menu_level_n].scale.set(1, 1);
+      if (menu_horizontal === 0) {
+        level_n_text[menu_level_n].scale.set(scale, scale);
+      } else if (menu_horizontal === 1) {
+        arrow_right_text.position.x = arrow_right_text_x + (scale - 1) * 400;
+      } else if (menu_horizontal === -1) {
+        arrow_left_text.position.x = arrow_left_text_x - (scale - 1) * 400;
+      }
     }
     import_shaku.default.gfx.drawGroup(level_n_text[menu_level_n], false);
     if (menu_level_n > 0) {
@@ -11495,7 +11504,7 @@ function step() {
     pause_menu_types_sprites[menu_level_n].forEach((x) => import_shaku.default.gfx.drawSprite(x));
     import_shaku.default.gfx.drawSprite(cursor_sprite);
     if (cur_level_n === -1) {
-      if (import_shaku.default.input.pressed("space") || import_shaku.default.input.mousePressed() && (menu_vertical < 2 || mouse_hor === 0)) {
+      if (import_shaku.default.input.pressed("space") || import_shaku.default.input.mousePressed() && (menu_vertical < 2 || menu_horizontal === 0)) {
         cur_level_n = menu_level_n;
         loadLevel(cur_level_n);
         paused = false;
@@ -11512,7 +11521,7 @@ function step() {
           paused = false;
         }
       } else if (menu_vertical === 2) {
-        if (import_shaku.default.input.pressed("space") || import_shaku.default.input.mousePressed() && (menu_vertical < 2 || mouse_hor === 0)) {
+        if (import_shaku.default.input.pressed("space") || import_shaku.default.input.mousePressed() && (menu_vertical < 2 || menu_horizontal === 0)) {
           unloadCurrentEnemies();
           cur_level_n = menu_level_n;
           loadLevel(cur_level_n);
