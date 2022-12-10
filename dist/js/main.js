@@ -3444,7 +3444,7 @@ var require_effect = __commonJS({
     var { TextureWrapMode, TextureWrapModes: TextureWrapModes2 } = require_texture_wrap_modes();
     var Matrix = require_matrix();
     var _logger = require_logger().getLogger("gfx-effect");
-    var Effect2 = class {
+    var Effect3 = class {
       _build(gl) {
         let program = gl.createProgram();
         {
@@ -3597,7 +3597,7 @@ var require_effect = __commonJS({
         if (texture === this._cachedValues.texture) {
           return false;
         }
-        let uniform = this._uniformBinds[Effect2.UniformBinds.MainTexture];
+        let uniform = this._uniformBinds[Effect3.UniformBinds.MainTexture];
         if (uniform) {
           this._cachedValues.texture = texture;
           let glTexture = texture.texture || texture;
@@ -3609,7 +3609,7 @@ var require_effect = __commonJS({
         return false;
       }
       setColor(color) {
-        let uniform = this._uniformBinds[Effect2.UniformBinds.Color];
+        let uniform = this._uniformBinds[Effect3.UniformBinds.Color];
         if (uniform) {
           if (color.equals(this._cachedValues.color)) {
             return;
@@ -3632,17 +3632,17 @@ var require_effect = __commonJS({
         if (!sourceRect) {
           sourceRect = new Rectangle2(0, 0, texture.width, texture.height);
         }
-        let uvOffset = this._uniformBinds[Effect2.UniformBinds.UvOffset];
+        let uvOffset = this._uniformBinds[Effect3.UniformBinds.UvOffset];
         if (uvOffset) {
           this.uniforms[uvOffset](sourceRect.x / texture.width, sourceRect.y / texture.height);
         }
-        let uvScale = this._uniformBinds[Effect2.UniformBinds.UvScale];
+        let uvScale = this._uniformBinds[Effect3.UniformBinds.UvScale];
         if (uvScale) {
           this.uniforms[uvScale](sourceRect.width / texture.width, sourceRect.height / texture.height);
         }
       }
       setProjectionMatrix(matrix) {
-        let uniform = this._uniformBinds[Effect2.UniformBinds.Projection];
+        let uniform = this._uniformBinds[Effect3.UniformBinds.Projection];
         if (uniform) {
           if (matrix.equals(this._cachedValues.projection)) {
             return;
@@ -3652,13 +3652,13 @@ var require_effect = __commonJS({
         }
       }
       setWorldMatrix(matrix) {
-        let uniform = this._uniformBinds[Effect2.UniformBinds.World];
+        let uniform = this._uniformBinds[Effect3.UniformBinds.World];
         if (uniform) {
           this.uniforms[uniform](matrix.values);
         }
       }
       setPositionsAttribute(buffer) {
-        let attr = this._attributeBinds[Effect2.AttributeBinds.Position];
+        let attr = this._attributeBinds[Effect3.AttributeBinds.Position];
         if (attr) {
           if (buffer === this._cachedValues.positions) {
             return;
@@ -3668,7 +3668,7 @@ var require_effect = __commonJS({
         }
       }
       setTextureCoordsAttribute(buffer) {
-        let attr = this._attributeBinds[Effect2.AttributeBinds.TextureCoords];
+        let attr = this._attributeBinds[Effect3.AttributeBinds.TextureCoords];
         if (attr) {
           if (buffer === this._cachedValues.coords) {
             return;
@@ -3678,7 +3678,7 @@ var require_effect = __commonJS({
         }
       }
       setColorsAttribute(buffer) {
-        let attr = this._attributeBinds[Effect2.AttributeBinds.Colors];
+        let attr = this._attributeBinds[Effect3.AttributeBinds.Colors];
         if (attr) {
           if (buffer === this._cachedValues.colors) {
             return;
@@ -3725,8 +3725,8 @@ var require_effect = __commonJS({
       writable: false
     });
     Object.freeze(UniformTypes);
-    Effect2.UniformTypes = UniformTypes;
-    Effect2.UniformBinds = {
+    Effect3.UniformTypes = UniformTypes;
+    Effect3.UniformBinds = {
       MainTexture: "texture",
       Color: "color",
       Projection: "projection",
@@ -3734,8 +3734,8 @@ var require_effect = __commonJS({
       UvOffset: "uvOffset",
       UvScale: "uvScale"
     };
-    Object.freeze(Effect2.UniformBinds);
-    Effect2.AttributeTypes = {
+    Object.freeze(Effect3.UniformBinds);
+    Effect3.AttributeTypes = {
       Byte: "BYTE",
       Short: "SHORT",
       UByte: "UNSIGNED_BYTE",
@@ -3743,13 +3743,13 @@ var require_effect = __commonJS({
       Float: "FLOAT",
       HalfFloat: "HALF_FLOAT"
     };
-    Object.freeze(Effect2.AttributeTypes);
-    Effect2.AttributeBinds = {
+    Object.freeze(Effect3.AttributeTypes);
+    Effect3.AttributeBinds = {
       Position: "position",
       TextureCoords: "uvs",
       Colors: "colors"
     };
-    Object.freeze(Effect2.AttributeBinds);
+    Object.freeze(Effect3.AttributeBinds);
     function _setTextureFilter(gl, filter) {
       if (!TextureFilterModes2._values.has(filter)) {
         throw new Error("Invalid texture filter mode! Please pick a value from 'TextureFilterModes'.");
@@ -3771,7 +3771,7 @@ var require_effect = __commonJS({
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl[wrapX]);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl[wrapY]);
     }
-    module.exports = Effect2;
+    module.exports = Effect3;
   }
 });
 
@@ -3779,8 +3779,8 @@ var require_effect = __commonJS({
 var require_basic = __commonJS({
   "../Shaku/lib/gfx/effects/basic.js"(exports, module) {
     "use strict";
-    var Effect2 = require_effect();
-    var vertexShader2 = `
+    var Effect3 = require_effect();
+    var vertexShader3 = `
 attribute vec3 position;
 attribute vec2 coord;
 attribute vec4 color;
@@ -3798,7 +3798,7 @@ void main(void) {
     v_color = color;
 }
     `;
-    var fragmentShader2 = `  
+    var fragmentShader3 = `  
 #ifdef GL_ES
     precision highp float;
 #endif
@@ -3813,25 +3813,25 @@ void main(void) {
     gl_FragColor.rgb *= gl_FragColor.a;
 }
     `;
-    var BasicEffect = class extends Effect2 {
+    var BasicEffect = class extends Effect3 {
       get vertexCode() {
-        return vertexShader2;
+        return vertexShader3;
       }
       get fragmentCode() {
-        return fragmentShader2;
+        return fragmentShader3;
       }
       get uniformTypes() {
         return {
-          "texture": { type: Effect2.UniformTypes.Texture, bind: Effect2.UniformBinds.MainTexture },
-          "projection": { type: Effect2.UniformTypes.Matrix, bind: Effect2.UniformBinds.Projection },
-          "world": { type: Effect2.UniformTypes.Matrix, bind: Effect2.UniformBinds.World }
+          "texture": { type: Effect3.UniformTypes.Texture, bind: Effect3.UniformBinds.MainTexture },
+          "projection": { type: Effect3.UniformTypes.Matrix, bind: Effect3.UniformBinds.Projection },
+          "world": { type: Effect3.UniformTypes.Matrix, bind: Effect3.UniformBinds.World }
         };
       }
       get attributeTypes() {
         return {
-          "position": { size: 3, type: Effect2.AttributeTypes.Float, normalize: false, bind: Effect2.AttributeBinds.Position },
-          "coord": { size: 2, type: Effect2.AttributeTypes.Float, normalize: false, bind: Effect2.AttributeBinds.TextureCoords },
-          "color": { size: 4, type: Effect2.AttributeTypes.Float, normalize: false, bind: Effect2.AttributeBinds.Colors }
+          "position": { size: 3, type: Effect3.AttributeTypes.Float, normalize: false, bind: Effect3.AttributeBinds.Position },
+          "coord": { size: 2, type: Effect3.AttributeTypes.Float, normalize: false, bind: Effect3.AttributeBinds.TextureCoords },
+          "color": { size: 4, type: Effect3.AttributeTypes.Float, normalize: false, bind: Effect3.AttributeBinds.Colors }
         };
       }
     };
@@ -3843,8 +3843,8 @@ void main(void) {
 var require_msdf_font = __commonJS({
   "../Shaku/lib/gfx/effects/msdf_font.js"(exports, module) {
     "use strict";
-    var Effect2 = require_effect();
-    var vertexShader2 = `#version 300 es
+    var Effect3 = require_effect();
+    var vertexShader3 = `#version 300 es
 in vec3 a_position;
 in vec2 a_coord;
 in vec4 a_color;
@@ -3861,7 +3861,7 @@ void main(void) {
     v_texCoord = a_coord;
     v_color = a_color;
 }`;
-    var fragmentShader2 = `#version 300 es
+    var fragmentShader3 = `#version 300 es
 precision highp float;
 
 uniform sampler2D u_texture;
@@ -3884,25 +3884,25 @@ void main(void) {
   vec3 color = v_color.rgb * alpha;
   FragColor = vec4(color, alpha) * v_color.a;
 }`;
-    var MsdfFontEffect = class extends Effect2 {
+    var MsdfFontEffect = class extends Effect3 {
       get vertexCode() {
-        return vertexShader2;
+        return vertexShader3;
       }
       get fragmentCode() {
-        return fragmentShader2;
+        return fragmentShader3;
       }
       get uniformTypes() {
         return {
-          "u_texture": { type: Effect2.UniformTypes.Texture, bind: Effect2.UniformBinds.MainTexture },
-          "u_projection": { type: Effect2.UniformTypes.Matrix, bind: Effect2.UniformBinds.Projection },
-          "u_world": { type: Effect2.UniformTypes.Matrix, bind: Effect2.UniformBinds.World }
+          "u_texture": { type: Effect3.UniformTypes.Texture, bind: Effect3.UniformBinds.MainTexture },
+          "u_projection": { type: Effect3.UniformTypes.Matrix, bind: Effect3.UniformBinds.Projection },
+          "u_world": { type: Effect3.UniformTypes.Matrix, bind: Effect3.UniformBinds.World }
         };
       }
       get attributeTypes() {
         return {
-          "a_position": { size: 3, type: Effect2.AttributeTypes.Float, normalize: false, bind: Effect2.AttributeBinds.Position },
-          "a_coord": { size: 2, type: Effect2.AttributeTypes.Float, normalize: false, bind: Effect2.AttributeBinds.TextureCoords },
-          "a_color": { size: 4, type: Effect2.AttributeTypes.Float, normalize: false, bind: Effect2.AttributeBinds.Colors }
+          "a_position": { size: 3, type: Effect3.AttributeTypes.Float, normalize: false, bind: Effect3.AttributeBinds.Position },
+          "a_coord": { size: 2, type: Effect3.AttributeTypes.Float, normalize: false, bind: Effect3.AttributeBinds.TextureCoords },
+          "a_color": { size: 4, type: Effect3.AttributeTypes.Float, normalize: false, bind: Effect3.AttributeBinds.Colors }
         };
       }
     };
@@ -4911,7 +4911,7 @@ var require_gfx = __commonJS({
     var Color3 = require_color();
     var { BlendMode, BlendModes: BlendModes2 } = require_blend_modes();
     var Rectangle2 = require_rectangle();
-    var { Effect: Effect2, BasicEffect, MsdfFontEffect } = require_effects();
+    var { Effect: Effect3, BasicEffect, MsdfFontEffect } = require_effects();
     var TextureAsset = require_texture_asset();
     var { TextureFilterMode, TextureFilterModes: TextureFilterModes2 } = require_texture_filter_modes();
     var { TextureWrapMode, TextureWrapModes: TextureWrapModes2 } = require_texture_wrap_modes();
@@ -4977,7 +4977,7 @@ var require_gfx = __commonJS({
         return this._canvas;
       }
       get Effect() {
-        return Effect2;
+        return Effect3;
       }
       get BasicEffect() {
         return BasicEffect;
@@ -5021,7 +5021,7 @@ var require_gfx = __commonJS({
         return camera;
       }
       createEffect(type) {
-        if (!(type.prototype instanceof Effect2)) {
+        if (!(type.prototype instanceof Effect3)) {
           throw new Error("'type' must be a class type that inherits from 'Effect'.");
         }
         let effect = new type();
@@ -10850,6 +10850,174 @@ var BackgroundEffect = class extends import_effect.default {
   }
 };
 
+// src/font_effect.ts
+var import_effect2 = __toESM(require_effect());
+var vertexShader2 = `#version 300 es
+in vec3 a_position;
+in vec2 a_coord;
+
+uniform mat4 u_projection;
+uniform mat4 u_world;
+uniform float u_aspect_ratio;
+
+out vec2 v_texCoord;
+out vec2 v_screenCoord;
+
+void main(void) {
+    gl_Position = u_projection * u_world * vec4(a_position, 1.0);
+    gl_PointSize = 1.0;
+    v_texCoord = a_coord;
+    v_screenCoord = (gl_Position.xy / gl_Position.w);
+    v_screenCoord.x *= u_aspect_ratio;
+}`;
+var fragmentShader2 = `#version 300 es
+precision highp float;
+
+uniform float u_time;
+uniform sampler2D u_texture;
+uniform sampler2D u_texture_grunge;
+
+in vec2 v_texCoord;
+in vec2 v_screenCoord;
+out vec4 FragColor;
+
+/* discontinuous pseudorandom uniformly distributed in [-0.5, +0.5]^3 */
+vec3 random3(vec3 c) {
+	float j = 4096.0*sin(dot(c,vec3(17.0, 59.4, 15.0)));
+	vec3 r;
+	r.z = fract(512.0*j);
+	j *= .125;
+	r.x = fract(512.0*j);
+	j *= .125;
+	r.y = fract(512.0*j);
+	return r-0.5;
+}
+
+/* skew constants for 3d simplex functions */
+const float F3 =  0.3333333;
+const float G3 =  0.1666667;
+
+/* 3d simplex noise */
+float simplex3d(vec3 p) {
+	 /* 1. find current tetrahedron T and it's four vertices */
+	 /* s, s+i1, s+i2, s+1.0 - absolute skewed (integer) coordinates of T vertices */
+	 /* x, x1, x2, x3 - unskewed coordinates of p relative to each of T vertices*/
+	 
+	 /* calculate s and x */
+	 vec3 s = floor(p + dot(p, vec3(F3)));
+	 vec3 x = p - s + dot(s, vec3(G3));
+	 
+	 /* calculate i1 and i2 */
+	 vec3 e = step(vec3(0.0), x - x.yzx);
+	 vec3 i1 = e*(1.0 - e.zxy);
+	 vec3 i2 = 1.0 - e.zxy*(1.0 - e);
+	 	
+	 /* x1, x2, x3 */
+	 vec3 x1 = x - i1 + G3;
+	 vec3 x2 = x - i2 + 2.0*G3;
+	 vec3 x3 = x - 1.0 + 3.0*G3;
+	 
+	 /* 2. find four surflets and store them in d */
+	 vec4 w, d;
+	 
+	 /* calculate surflet weights */
+	 w.x = dot(x, x);
+	 w.y = dot(x1, x1);
+	 w.z = dot(x2, x2);
+	 w.w = dot(x3, x3);
+	 
+	 /* w fades from 0.6 at the center of the surflet to 0.0 at the margin */
+	 w = max(0.6 - w, 0.0);
+	 
+	 /* calculate surflet components */
+	 d.x = dot(random3(s), x);
+	 d.y = dot(random3(s + i1), x1);
+	 d.z = dot(random3(s + i2), x2);
+	 d.w = dot(random3(s + 1.0), x3);
+	 
+	 /* multiply d by w^4 */
+	 w *= w;
+	 w *= w;
+	 d *= w;
+	 
+	 /* 3. return the sum of the four surflets */
+	 return dot(d, vec4(52.0)) + .25;
+}
+
+
+vec2 pong(vec2 value, float pong_value) {
+    vec2 v = mod(value, pong_value * 2.0);
+    return min(v, pong_value * 2.0 - v);
+}
+
+float median(float r, float g, float b) {
+    return max(min(r, g), min(max(r, g), b));
+}
+
+void main(void) {
+
+    // Normalized pixel coordinates (from -1 to 1 on vertical axis, -ratio to ratio on horizontal)
+    vec2 uv = v_screenCoord;
+
+    // size of game area
+    vec2 size = vec2(1.333333 - .2, .8);
+    float radius = 0.065;
+    float thickness = 0.15;
+    float d = length(max(abs(uv),size) - size) - radius;
+    float border = smoothstep(0.55, 0.45, abs(d / thickness) * 5.0);
+
+    float noise1 = simplex3d(vec3(uv * 1.0, u_time * 1.1)) * clamp(u_time - .3, 0.0, 1.0);
+    float noise2 = simplex3d(vec3(u_time * 1.0, uv * 0.9)) * clamp(u_time - .3, 0.0, 1.0);
+    float noise3 = simplex3d(vec3(uv.y * .9, u_time * 1.0, uv.x * .9)) * clamp(u_time - .3, 0.0, 1.0);
+    // float noise3 = abs(simplex3d(vec3(uv * 0.9 + vec2(.3, .6), u_time * 1.0)) * clamp(u_time - .3, 0.0, 1.0) + .01) + .01;
+    // vec3 total = vec3(noise1, noise2, noise3) / (noise1 + noise2 + noise3);
+
+    vec3 sampled = texture(u_texture_grunge, v_screenCoord * .5).xyz;
+    // float thing = dot(total, sampled) * 2.2;
+    // float thing = mix(sampled.r, sampled.g, noise1) * 1.2;
+    float thing1 = mix(sampled.r, sampled.g, smoothstep(.1, .7, noise1));
+    float thing2 = mix(sampled.b, 0.1, smoothstep(.1, .7, noise2));
+    float thing3 = mix(thing1, thing2, smoothstep(.1, .7, noise3));
+    vec3 result = vec3(thing3,thing3-.025,thing3+.025);
+    FragColor = vec4(.9 + (result + border * .8), 1.0);
+    // FragColor = vec4(total, 1.0);
+    // FragColor = vec4(border, border, border, 1.0);
+
+    vec3 _sample = texture(u_texture, v_texCoord).rgb;
+    float sigDist = median(_sample.r, _sample.g, _sample.b) - 0.5;
+    float alpha = clamp(sigDist / fwidth(sigDist) + 0.5, 0.0, 1.0);
+    FragColor *= alpha;
+
+    // Output to screen
+    // FragColor = vec4(mix(vec3(.1843, .3098, .3098), vec3(.149, .2471, .2471), noise), 1.0);
+    // vec4 color0 = texture(u_texture, v_texCoord * .5);
+    // FragColor = vec4(mix(color0, color1, noise1), 1.0);
+}`;
+var FontEffect = class extends import_effect2.default {
+  get vertexCode() {
+    return vertexShader2;
+  }
+  get fragmentCode() {
+    return fragmentShader2;
+  }
+  get uniformTypes() {
+    return {
+      "u_texture_grunge": { type: import_effect2.default.UniformTypes.Texture, bind: "u_texture_grunge" },
+      "u_texture": { type: import_effect2.default.UniformTypes.Texture, bind: import_effect2.default.UniformBinds.MainTexture },
+      "u_projection": { type: import_effect2.default.UniformTypes.Matrix, bind: import_effect2.default.UniformBinds.Projection },
+      "u_world": { type: import_effect2.default.UniformTypes.Matrix, bind: import_effect2.default.UniformBinds.World },
+      "u_time": { type: import_effect2.default.UniformTypes.Float, bind: "u_time" },
+      "u_aspect_ratio": { type: import_effect2.default.UniformTypes.Float, bind: "u_aspect_ratio" }
+    };
+  }
+  get attributeTypes() {
+    return {
+      "a_position": { size: 3, type: import_effect2.default.AttributeTypes.Float, normalize: false, bind: import_effect2.default.AttributeBinds.Position },
+      "a_coord": { size: 2, type: import_effect2.default.AttributeTypes.Float, normalize: false, bind: import_effect2.default.AttributeBinds.TextureCoords }
+    };
+  }
+};
+
 // src/main.ts
 var CONFIG = {
   post_merge_speed: 750,
@@ -11027,6 +11195,10 @@ import_shaku.default.gfx.useEffect(background_effect);
 background_effect.uniforms["u_texture"](background_texture, 4);
 background_effect.uniforms["u_aspect_ratio"](FULL_SCREEN_SPRITE.size.x / FULL_SCREEN_SPRITE.size.y);
 background_effect.uniforms["u_alpha"](1);
+var font_effect = import_shaku.default.gfx.createEffect(FontEffect);
+import_shaku.default.gfx.useEffect(font_effect);
+font_effect.uniforms["u_texture_grunge"](background_texture, 4);
+font_effect.uniforms["u_aspect_ratio"](FULL_SCREEN_SPRITE.size.x / FULL_SCREEN_SPRITE.size.y);
 import_shaku.default.gfx.useEffect(null);
 function addSteer(steer, fn) {
   for (let k = 0; k < CONFIG.steer_resolution; k++) {
@@ -11575,7 +11747,7 @@ function step() {
       menu_vertical = cursor_sprite.position.y * SCALING < 565 ? 0 : cursor_sprite.position.y * SCALING < 695 ? 1 : 2;
     }
     let scale = Math.sin(import_shaku.default.gameTime.elapsed * 6) * 0.03 + 1;
-    import_shaku.default.gfx.useEffect(import_gfx.builtinEffects.MsdfFont);
+    import_shaku.default.gfx.useEffect(font_effect);
     import_shaku.default.gfx.drawGroup(logo_text, false);
     if (cur_level_n === -1) {
       if (menu_vertical === 2) {

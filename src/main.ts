@@ -16,6 +16,7 @@ import SoundAsset from "shaku/lib/assets/sound_asset";
 import Deque from "double-ended-queue";
 // import { ScreenTextureEffect } from "./screen_texture_effect";
 import { BackgroundEffect } from "./background_effect";
+import { FontEffect } from "./font_effect";
 import SoundInstance from "shaku/types/sfx/sound_instance";
 
 const CONFIG = {
@@ -273,6 +274,14 @@ background_effect.uniforms["u_texture"](background_texture, 4);
 background_effect.uniforms["u_aspect_ratio"](FULL_SCREEN_SPRITE.size.x / FULL_SCREEN_SPRITE.size.y);
 // @ts-ignore
 background_effect.uniforms["u_alpha"](1);
+
+const font_effect = Shaku.gfx.createEffect(FontEffect);
+Shaku.gfx.useEffect(font_effect);
+// @ts-ignore
+font_effect.uniforms["u_texture_grunge"](background_texture, 4);
+// @ts-ignore
+font_effect.uniforms["u_aspect_ratio"](FULL_SCREEN_SPRITE.size.x / FULL_SCREEN_SPRITE.size.y);
+
 // @ts-ignore
 Shaku.gfx.useEffect(null);
 
@@ -1178,7 +1187,8 @@ function step() {
         }
 
         let scale = Math.sin(Shaku.gameTime.elapsed * 6.0) * .03 + 1;
-        Shaku.gfx.useEffect(builtinEffects.MsdfFont);
+        // Shaku.gfx.useEffect(builtinEffects.MsdfFont);
+        Shaku.gfx.useEffect(font_effect);
         Shaku.gfx.drawGroup(logo_text, false);
         if (cur_level_n === -1) {
             if (menu_vertical === 2) {
