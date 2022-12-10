@@ -223,8 +223,8 @@ player_tail_sprite.color = new Color(1, 1, 1, .5);
 // enemy_hit_trail_sprite.size.mulSelf(CONFIG.enemy_radius / 50);
 // enemy_hit_trail_sprite.color = new Color(1, 1, 1, .125);
 
-let bullet_texture = await Shaku.assets.loadTexture("imgs/bullet.png", { generateMipMaps: true });
-bullet_texture.filter = TextureFilterModes.Linear;
+// let bullet_texture = await Shaku.assets.loadTexture("imgs/bullet.png", { generateMipMaps: true });
+// bullet_texture.filter = TextureFilterModes.Linear;
 
 // let crash_particle_texture = await Shaku.assets.loadTexture("imgs/crash_particle.png", { generateMipMaps: true });
 // crash_particle_texture.filter = TextureFilterModes.Linear;
@@ -302,7 +302,8 @@ class Bullet {
         public pos: Vector2,
         public vel: Vector2,
     ) {
-        this.sprite = new Shaku.gfx!.Sprite(bullet_texture);
+        // this.sprite = new Shaku.gfx!.Sprite(bullet_texture);
+        this.sprite = new Shaku.gfx!.Sprite(Shaku.gfx.whiteTexture);
         this.sprite.size.mulSelf(CONFIG.bullet_radius / 50);
         this.sprite.position = pos;
     }
@@ -324,7 +325,8 @@ class StaticBullet extends Bullet {
         public remaining_life: number,
     ) {
         super(pos, Vector2.zero);
-        this.sprite = new Shaku.gfx!.Sprite(bullet_texture);
+        // this.sprite = new Shaku.gfx!.Sprite(bullet_texture);
+        this.sprite = new Shaku.gfx!.Sprite(Shaku.gfx.whiteTexture);
         this.sprite.size.mulSelf(CONFIG.bullet_radius / 50);
         this.sprite.position = pos;
     }
