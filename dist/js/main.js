@@ -10852,6 +10852,7 @@ var BackgroundEffect = class extends import_effect.default {
 
 // src/main.ts
 var CONFIG = {
+  post_merge_speed: 750,
   player_speed: 355,
   enemy_speed: 150,
   min_enemy_dist: 120,
@@ -10943,6 +10944,7 @@ CONFIG.dodge_acc *= SCALING;
 CONFIG.enemy_acc *= SCALING;
 CONFIG.player_acc *= SCALING;
 CONFIG.separation_strength *= SCALING;
+CONFIG.post_merge_speed *= SCALING;
 var paused = true;
 var animators = [];
 var COLOR_BACKGROUND = new import_color.default(0.2, 0.195, 0.205);
@@ -11697,8 +11699,8 @@ function step() {
               hitter: first_hit.hit_enemy,
               hitted: second_hit.hit_enemy,
               time_until_end: CONFIG.dash_hit_duration,
-              hitter_new_vel: hitter_new_vel.mul(750 * damp),
-              hitted_new_vel: hitted_new_vel.mul(750 * damp),
+              hitter_new_vel: hitter_new_vel.mul(CONFIG.post_merge_speed * damp),
+              hitted_new_vel: hitted_new_vel.mul(CONFIG.post_merge_speed * damp),
               starting: true,
               merge: true,
               particle: new_particle

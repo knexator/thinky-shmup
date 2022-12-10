@@ -17,6 +17,7 @@ import { BackgroundEffect } from "./background_effect";
 import SpritesGroup from "shaku/types/gfx/sprites_group";
 
 const CONFIG = {
+    post_merge_speed: 750,
     player_speed: 355, // 2.25s to cross the 800px screen
     enemy_speed: 150, // about half?
     min_enemy_dist: 120,
@@ -116,6 +117,7 @@ CONFIG.dodge_acc *= SCALING;
 CONFIG.enemy_acc *= SCALING;
 CONFIG.player_acc *= SCALING;
 CONFIG.separation_strength *= SCALING;
+CONFIG.post_merge_speed *= SCALING;
 
 // Loading Screen
 // Shaku.startFrame();
@@ -1303,8 +1305,8 @@ function step() {
                             hitter: first_hit.hit_enemy,
                             hitted: second_hit.hit_enemy,
                             time_until_end: CONFIG.dash_hit_duration,
-                            hitter_new_vel: hitter_new_vel.mul(750 * damp),
-                            hitted_new_vel: hitted_new_vel.mul(750 * damp),
+                            hitter_new_vel: hitter_new_vel.mul(CONFIG.post_merge_speed * damp),
+                            hitted_new_vel: hitted_new_vel.mul(CONFIG.post_merge_speed * damp),
                             starting: true,
                             merge: true,
                             particle: new_particle,
