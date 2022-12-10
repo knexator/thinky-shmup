@@ -422,6 +422,13 @@ class Enemy {
         this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
         this.vel.mulSelf(1 / (1 + (dt * CONFIG.enemy_friction)));
         this.pos.addSelf(this.vel.mul(dt));
+        this.bounce();
+        if (this.vel.x !== 0 || this.vel.y !== 0) {
+            this.dir.copy(this.vel).normalizeSelf();
+        }
+    }
+
+    bounce() {
         if (this.pos.x < board_area.left) {
             this.vel.x *= -1;
             this.pos.x += (board_area.left - this.pos.x) * 2;
@@ -434,9 +441,6 @@ class Enemy {
         } else if (this.pos.y > board_area.bottom) {
             this.vel.y *= -1;
             this.pos.y += (board_area.bottom - this.pos.y) * 2;
-        }
-        if (this.vel.x !== 0 || this.vel.y !== 0) {
-            this.dir.copy(this.vel).normalizeSelf();
         }
     }
 
@@ -493,6 +497,7 @@ class DelayedEnemy extends Enemy {
         this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
         this.vel.mulSelf(1 / (1 + (dt * CONFIG.enemy_friction * 3)));
         this.pos.addSelf(this.vel.mul(dt));
+        this.bounce();
     }
 }
 
@@ -677,18 +682,7 @@ const levels = [
 let initial_types: Ship[] = [];
 let target_types: Ship[] = [];
 let target_types_sprites: Sprite[] = [];
-// target_types.map((x, index) => {
-//     let res = new Shaku.gfx!.Sprite(enemy_atlas_texture);
-//     setSpriteToType(res, x);
-//     res.position.set(board_area.x + board_area.width + CONFIG.enemy_radius * 3, board_area.y + (index + .5) * CONFIG.enemy_radius * 3);
-//     return res;
-// });
 let outdated_types_sprites: Sprite[] = [];
-// for (let k = 0; k < initial_types.length; k++) {
-//     let cur = new Enemy(new Vector2(Math.random(), Math.random()).mulSelf(board_area.getSize()).addSelf(board_area.getTopLeft()));
-//     cur.setType(initial_types[k]);
-//     enemies.push(cur);
-// }
 
 let logo_text = Shaku.gfx.buildText(logo_font, "Catalyst", 178 * SCALING, Color.white, TextAlignments.Center);
 logo_text.position = Shaku.gfx.getCanvasSize().mul(.5, .125);
@@ -765,6 +759,22 @@ addEventListener("resize", (event) => {
     Shaku.gfx.useEffect(null);
 });
 
+function fastSpawnEnemy(x: Ship, pos: Vector2) {
+    let enemy_class = Enemy;
+    switch (x) {
+        case Ship.P1:
+            enemy_class = DelayedEnemy;
+            break;
+
+        default:
+            break;
+    }
+    let enemy = new enemy_class(pos);
+    enemy.setType(x);
+    enemies.push(enemy);
+    return enemy;
+}
+
 function spawnEnemy(x: Ship, delay: number) {
     animators.push(new Animator(null).duration(delay).then(() => {
         let pos = new Vector2(Math.random(), Math.random()).mulSelf(board_area.getSize()).addSelf(board_area.getTopLeft());
@@ -789,9 +799,7 @@ function spawnEnemy(x: Ship, delay: number) {
             spawn_sprite.size.mulSelf(1.7 * SCALING);
             if (!spawned && t > .5) {
                 spawned = true;
-                let enemy = new Enemy(pos);
-                enemy.setType(x);
-                enemies.push(enemy);
+                fastSpawnEnemy(x, pos);
             }
         }).then(() => {
             spawn_sprites = spawn_sprites.filter(y => y !== spawn_sprite);
@@ -1124,12 +1132,8 @@ function step() {
                 if (new_types !== null) {
                     cur_hit.merge = true;
                     enemies = enemies.filter(x => x !== cur_hit!.hitted && x !== cur_hit!.hitter);
-                    let new_enemy_1 = new Enemy(cur_hit!.hitted.pos.clone());
-                    new_enemy_1.setType(new_types[0]);
-                    enemies.push(new_enemy_1);
-                    let new_enemy_2 = new Enemy(cur_hit!.hitter.pos.clone());
-                    new_enemy_2.setType(new_types[1]);
-                    enemies.push(new_enemy_2);
+                    let new_enemy_1 = fastSpawnEnemy(new_types[0], cur_hit.hitted.pos.clone());
+                    let new_enemy_2 = fastSpawnEnemy(new_types[1], cur_hit.hitter.pos.clone());
                     cur_hit.hitted = new_enemy_1;
                     cur_hit.hitter = new_enemy_2;
                     updateCompletedTargets();

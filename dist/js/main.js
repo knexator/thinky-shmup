@@ -4,8 +4,8 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __commonJS = (cb, mod) => function __require() {
-  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+var __commonJS = (cb, mod2) => function __require() {
+  return mod2 || (0, cb[__getOwnPropNames(cb)[0]])((mod2 = { exports: {} }).exports, mod2), mod2.exports;
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -15,9 +15,9 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-  mod
+var __toESM = (mod2, isNodeMode, target) => (target = mod2 != null ? __create(__getProtoOf(mod2)) : {}, __copyProps(
+  isNodeMode || !mod2 || !mod2.__esModule ? __defProp(target, "default", { value: mod2, enumerable: true }) : target,
+  mod2
 ));
 
 // ../Shaku/lib/manager.js
@@ -11121,6 +11121,12 @@ var Enemy = class {
     this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
     this.vel.mulSelf(1 / (1 + dt * CONFIG.enemy_friction));
     this.pos.addSelf(this.vel.mul(dt));
+    this.bounce();
+    if (this.vel.x !== 0 || this.vel.y !== 0) {
+      this.dir.copy(this.vel).normalizeSelf();
+    }
+  }
+  bounce() {
     if (this.pos.x < board_area.left) {
       this.vel.x *= -1;
       this.pos.x += (board_area.left - this.pos.x) * 2;
@@ -11134,9 +11140,6 @@ var Enemy = class {
       this.vel.y *= -1;
       this.pos.y += (board_area.bottom - this.pos.y) * 2;
     }
-    if (this.vel.x !== 0 || this.vel.y !== 0) {
-      this.dir.copy(this.vel).normalizeSelf();
-    }
   }
   update(dt) {
     this.steer.fill(0);
@@ -11147,6 +11150,33 @@ var Enemy = class {
   draw() {
     this.sprite.rotation = this.dir.getRadians();
     import_shaku.default.gfx.drawSprite(this.sprite);
+  }
+};
+var DelayedEnemy = class extends Enemy {
+  cur_goal;
+  constructor(pos) {
+    super(pos);
+    this.cur_goal = null;
+  }
+  update(dt) {
+    this.steer.fill(0);
+    if (this.cur_goal === null) {
+      let delta = player_pos.sub(this.pos);
+      this.dir = rotateTowards(this.dir, delta, CONFIG.delayed_rot_speed * dt);
+      if (Math.abs(radiansBetween(this.dir, delta.normalized())) <= 1e-4) {
+        this.cur_goal = player_pos.clone();
+      }
+    } else {
+      this.steer_chaseDir(this.dir, CONFIG.enemy_speed * 30);
+      if (import_vector2.default.dot(this.dir, this.cur_goal.sub(this.pos)) <= 0) {
+        this.cur_goal = null;
+      }
+    }
+    this.steer_hoverAndDodge();
+    this.vel.addSelf(bestDir(this.steer).mulSelf(dt));
+    this.vel.mulSelf(1 / (1 + dt * CONFIG.enemy_friction * 3));
+    this.pos.addSelf(this.vel.mul(dt));
+    this.bounce();
   }
 };
 var time_since_dash = Infinity;
@@ -11256,6 +11286,20 @@ addEventListener("resize", (event) => {
   background_effect.uniforms["u_aspect_ratio"](FULL_SCREEN_SPRITE.size.x / FULL_SCREEN_SPRITE.size.y);
   import_shaku.default.gfx.useEffect(null);
 });
+function fastSpawnEnemy(x, pos) {
+  let enemy_class = Enemy;
+  switch (x) {
+    case 9 /* P1 */:
+      enemy_class = DelayedEnemy;
+      break;
+    default:
+      break;
+  }
+  let enemy = new enemy_class(pos);
+  enemy.setType(x);
+  enemies.push(enemy);
+  return enemy;
+}
 function spawnEnemy(x, delay) {
   animators.push(new import_animator.default(null).duration(delay).then(() => {
     let pos = new import_vector2.default(Math.random(), Math.random()).mulSelf(board_area.getSize()).addSelf(board_area.getTopLeft());
@@ -11284,9 +11328,7 @@ function spawnEnemy(x, delay) {
       spawn_sprite.size.mulSelf(1.7 * SCALING);
       if (!spawned && t > 0.5) {
         spawned = true;
-        let enemy = new Enemy(pos);
-        enemy.setType(x);
-        enemies.push(enemy);
+        fastSpawnEnemy(x, pos);
       }
     }).then(() => {
       spawn_sprites = spawn_sprites.filter((y) => y !== spawn_sprite);
@@ -11553,12 +11595,8 @@ function step() {
         if (new_types !== null) {
           cur_hit.merge = true;
           enemies = enemies.filter((x) => x !== cur_hit.hitted && x !== cur_hit.hitter);
-          let new_enemy_1 = new Enemy(cur_hit.hitted.pos.clone());
-          new_enemy_1.setType(new_types[0]);
-          enemies.push(new_enemy_1);
-          let new_enemy_2 = new Enemy(cur_hit.hitter.pos.clone());
-          new_enemy_2.setType(new_types[1]);
-          enemies.push(new_enemy_2);
+          let new_enemy_1 = fastSpawnEnemy(new_types[0], cur_hit.hitted.pos.clone());
+          let new_enemy_2 = fastSpawnEnemy(new_types[1], cur_hit.hitter.pos.clone());
           cur_hit.hitted = new_enemy_1;
           cur_hit.hitter = new_enemy_2;
           updateCompletedTargets();
@@ -11788,6 +11826,19 @@ function clamp(value, a, b) {
   if (value > b)
     return b;
   return value;
+}
+function mod(n, m) {
+  return (n % m + m) % m;
+}
+function radiansBetween(a, b) {
+  let radians = b.getRadians() - a.getRadians();
+  let eps = 0.01;
+  return mod(radians + Math.PI + eps, Math.PI * 2) - Math.PI + eps;
+}
+function rotateTowards(cur_val, target_val, max_radians) {
+  let radians = radiansBetween(cur_val, target_val);
+  radians = clamp(radians, -max_radians, max_radians);
+  return cur_val.rotatedRadians(radians);
 }
 function argmax(vals) {
   if (vals.length === 0) {
