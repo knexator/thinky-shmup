@@ -10,11 +10,13 @@ import Perlin from "shaku/lib/utils/perlin";
 import Rectangle from "shaku/lib/utils/rectangle";
 import Animator from "shaku/lib/utils/animator";
 import MsdfFontTextureAsset from "shaku/lib/assets/msdf_font_texture_asset";
+import SpritesGroup from "shaku/lib/gfx/sprites_group";
+import SoundAsset from "shaku/lib/assets/sound_asset";
 
 import Deque from "double-ended-queue";
 // import { ScreenTextureEffect } from "./screen_texture_effect";
 import { BackgroundEffect } from "./background_effect";
-import SpritesGroup from "shaku/types/gfx/sprites_group";
+import SoundInstance from "shaku/types/sfx/sound_instance";
 
 const CONFIG = {
     post_merge_speed: 750,
@@ -29,9 +31,9 @@ const CONFIG = {
     dash_dist: 200,
     player_turn_speed_radians: 3,
     enemy_radius: 35,
-    enemy_throwback_dist: 50,
+    enemy_throwback_dist: 80,
     enemy_throwback_speed: 700,
-    enemy_second_hit_dist: 120, // a bit more than throwback dist, to account for speed
+    enemy_second_hit_dist: 150, // a bit more than throwback dist, to account for speed
     enemy_acc: 600,
     enemy_friction: 2.5,
     dodge_acc: 1500,
@@ -139,6 +141,58 @@ const COLOR_BACKGROUND = new Color(.2, .195, .205);
 // @ts-ignore
 const logo_font = await Shaku.assets.loadMsdfFontTexture('fonts/ZenDots.ttf', { jsonUrl: 'fonts/ZenDots.json', textureUrl: 'fonts/ZenDots.png' });
 
+class SoundCollection {
+    public instances: SoundInstance[]
+    constructor(
+        sources: SoundAsset[]
+    ) {
+        this.instances = sources.map(x => Shaku.sfx.createSound(x));
+    }
+
+    play() {
+        let options = this.instances.filter(x => !x.playing);
+        if (options.length === 0) {
+            let cur = choice(this.instances)!;
+            cur.stop();
+            cur.play();
+        } else {
+            let cur = choice(options)!;
+            cur.play();
+        }
+    }
+}
+
+let wood_merge_sound = new SoundCollection([
+    await Shaku.assets.loadSound("sounds/wood_merge_1.mp3"),
+    await Shaku.assets.loadSound("sounds/wood_merge_2.mp3"),
+    await Shaku.assets.loadSound("sounds/wood_merge_3.mp3"),
+]);
+let wood_touch_sound = new SoundCollection([
+    await Shaku.assets.loadSound("sounds/wood_touch_1.mp3"),
+    await Shaku.assets.loadSound("sounds/wood_touch_2.mp3"),
+    await Shaku.assets.loadSound("sounds/wood_touch_3.mp3"),
+]);
+let wood_crash_sound = new SoundCollection([
+    await Shaku.assets.loadSound("sounds/wood_crash_1.mp3"),
+    await Shaku.assets.loadSound("sounds/wood_crash_2.mp3"),
+    await Shaku.assets.loadSound("sounds/wood_crash_3.mp3"),
+]);
+
+let metal_merge_sound = new SoundCollection([
+    await Shaku.assets.loadSound("sounds/metal_merge_1.mp3"),
+    await Shaku.assets.loadSound("sounds/metal_merge_2.mp3"),
+    await Shaku.assets.loadSound("sounds/metal_merge_3.mp3"),
+]);
+let metal_touch_sound = new SoundCollection([
+    await Shaku.assets.loadSound("sounds/metal_touch_1.mp3"),
+    await Shaku.assets.loadSound("sounds/metal_touch_2.mp3"),
+    await Shaku.assets.loadSound("sounds/metal_touch_3.mp3"),
+]);
+let metal_crash_sound = new SoundCollection([
+    await Shaku.assets.loadSound("sounds/metal_crash_1.mp3"),
+    await Shaku.assets.loadSound("sounds/metal_crash_2.mp3"),
+    await Shaku.assets.loadSound("sounds/metal_crash_3.mp3"),
+]);
 let cursor_texture = await Shaku.assets.loadTexture("imgs/cursor.png", { generateMipMaps: true });
 cursor_texture.filter = TextureFilterModes.Linear;
 let cursor_sprite = new Sprite(cursor_texture);
@@ -832,6 +886,9 @@ function fastSpawnEnemy(x: Ship, pos: Vector2) {
             break;
         default:
             // fast but takes a while to change direction
+            enemy.dodgeForce = 1.2;
+            enemy.dodgeTime = 1.2;
+            enemy.hoverForce = 1.2;
             enemy.friction = .5;
             enemy.acc = 0.9;
             break;
@@ -912,6 +969,40 @@ function loadLevel(n: number, regenerate_targets: boolean = true) {
         });
     }
     // updateCompletedTargets();
+}
+
+function playTouchSound(x: Ship) {
+    switch (x) {
+        case Ship.P1:
+        case Ship.P2:
+            metal_touch_sound.play();
+            console.log("playing metal_touch_sound")
+            break;
+        default:
+            wood_touch_sound.play();
+            console.log("playing wood_touch_sound")
+            break;
+    }
+}
+
+function playMergeSound(x1: Ship, x2: Ship) {
+    if (x1 === Ship.P1 || x1 === Ship.P2 || x2 === Ship.P1 || x2 === Ship.P2) {
+        metal_merge_sound.play();
+        console.log("playing metal_merge_sound")
+    } else {
+        wood_merge_sound.play();
+        console.log("playing wood_merge_sound")
+    }
+}
+
+function playCrashSound(x1: Ship, x2: Ship) {
+    if (x1 === Ship.P1 || x1 === Ship.P2 || x2 === Ship.P1 || x2 === Ship.P2) {
+        metal_crash_sound.play();
+        console.log("playing metal_crash_sound")
+    } else {
+        wood_crash_sound.play();
+        console.log("playing wood_crash_sound")
+    }
 }
 
 interface CollisionInfo {
@@ -1347,7 +1438,6 @@ function step() {
                     // first_hit.hit_enemy.vel.addSelf(second_ray_dir.mul(CONFIG.enemy_throwback_speed));
 
                     if (second_hit === null || wall_collision_time < second_hit.hit_dist) {
-
                         if (wall_collision_time < Infinity) {
                             first_hit.hit_enemy.pos.addSelf(second_ray_dir.mul(wall_collision_time));
                             first_hit.hit_enemy.vel.addSelf(second_ray_dir.mul(CONFIG.enemy_throwback_speed * (1 - wall_collision_time / CONFIG.enemy_throwback_dist)).mulSelf(wall_vector_modify));
@@ -1357,7 +1447,16 @@ function step() {
                             first_hit.hit_enemy.vel.addSelf(second_ray_dir.mul(CONFIG.enemy_throwback_speed));
                             last_enemy_dash_dist = CONFIG.enemy_throwback_dist;
                         }
+                        playTouchSound(first_hit.hit_enemy.ship_type);
                     } else {
+                        let new_types = combine(first_hit.hit_enemy.ship_type, second_hit.hit_enemy.ship_type);
+                        console.log("new types are: ", new_types)
+                        if (new_types === null) {
+                            playCrashSound(first_hit.hit_enemy.ship_type, second_hit.hit_enemy.ship_type);
+                        } else {
+                            playMergeSound(first_hit.hit_enemy.ship_type, second_hit.hit_enemy.ship_type);
+                        }
+
                         // let hitter_new_vel = second_ray_dir
                         first_hit.hit_enemy.pos.addSelf(second_ray_dir.mul(second_hit.hit_dist))
                         // console.log(Vector2.distance(first_hit.hit_enemy.pos, second_hit.hit_enemy.pos));
@@ -1542,6 +1641,13 @@ async function loadAsciiTexture(ascii: string, colors: (string | Color)[]): Prom
     Shaku.gfx!.setRenderTarget(null, false);
 
     return renderTarget;
+}
+
+function choice<T>(arr: T[]) {
+    if (arr.length === 0) {
+        return undefined
+    }
+    return arr[Math.floor(Math.random() * arr.length)];
 }
 
 function lerp(a: number, b: number, t: number) {
