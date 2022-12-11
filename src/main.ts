@@ -23,7 +23,7 @@ const CONFIG = {
     post_merge_speed: 750,
     player_speed: 355, // 2.25s to cross the 800px screen
     enemy_speed: 150, // about half?
-    min_enemy_dist: 200,
+    min_enemy_dist: 220,
     separation_strength: 250,
     dash_duration: 0.07,
     dash_cooldown: .4,
@@ -129,6 +129,7 @@ CONFIG.post_merge_speed *= SCALING;
 // Shaku.gfx!.clear(Shaku.utils.Color.cornflowerblue);
 // Shaku.endFrame();
 
+let muted = false;
 let paused = true;
 let animators: Animator[] = [];
 
@@ -153,6 +154,7 @@ class SoundCollection {
     }
 
     play() {
+        if (muted) return;
         let options = this.instances.filter(x => !x.playing);
         if (options.length === 0) {
             let cur = choice(this.instances)!;
@@ -768,6 +770,7 @@ const levels = [
     [[Ship.M, Ship.M, Ship.P2], [Ship.C, Ship.C, Ship.P2]], // relearn about 3 different, just in case
     [[Ship.C, Ship.Y, Ship.P2, Ship.P2], [Ship.M, Ship.M, Ship.C, Ship.Y]], // relearn about a+b+2 = ccc & a+a+2 = abc
     [[Ship.M, Ship.M, Ship.M, Ship.Y], [Ship.CC, Ship.M, Ship.Y, Ship.P1]], // start with 3 equal, no options
+    [[Ship.C, Ship.M, Ship.Y, Ship.P2], [Ship.CC, Ship.CC, Ship.P1, Ship.P1]], // review how to create 3 equal from 2 different
     [[Ship.YY, Ship.YY, Ship.CC, Ship.P1], [Ship.YC, Ship.CM, Ship.MY, Ship.P1]], // forced path to the core theorem of double balls
     [[Ship.Y, Ship.Y, Ship.Y, Ship.Y], [Ship.C, Ship.C, Ship.C, Ship.C]], // start with 3 equal, then separate to change
     [[Ship.M, Ship.M, Ship.M, Ship.Y], [Ship.M, Ship.Y, Ship.Y, Ship.Y]], // "start with 3 equal, no options" twice in ping pong
@@ -814,18 +817,21 @@ arrow_left_text.position.x -= SCALING * 175;
 const arrow_left_text_x = arrow_left_text.position.x;
 
 let pause_menu_types_sprites: Sprite[][] = levels.map(([initial, target]) => {
+    let smaller = .8;
     let res: Sprite[] = [];
     initial.forEach((x, k) => {
         let cur = new Shaku.gfx!.Sprite(enemy_atlas_texture);
         setSpriteToType(cur, x);
-        cur.position = board_area.getBottomLeft().addSelf((k + .5) * CONFIG.enemy_radius * 2.5, - CONFIG.enemy_radius * 1);
+        cur.size.mulSelf(smaller);
+        cur.position = board_area.getBottomLeft().addSelf((k + .5) * CONFIG.enemy_radius * 2.5 * smaller, - CONFIG.enemy_radius * smaller);
         cur.rotation = Math.PI;
         res.push(cur);
     });
     target.forEach((x, k) => {
         let cur = new Shaku.gfx!.Sprite(enemy_atlas_texture);
         setSpriteToType(cur, x);
-        cur.position = board_area.getBottomRight().addSelf(-(k + .5) * CONFIG.enemy_radius * 2.5, - CONFIG.enemy_radius * 1);
+        cur.size.mulSelf(smaller);
+        cur.position = board_area.getBottomRight().addSelf(-(k + .5) * CONFIG.enemy_radius * 2.5 * smaller, - CONFIG.enemy_radius * smaller);
         res.push(cur);
     });
     return res;
@@ -903,7 +909,7 @@ function fastSpawnEnemy(x: Ship, pos: Vector2) {
             enemy.dodgeTime = 1.2;
             enemy.hoverForce = 1.2;
             enemy.friction = .5;
-            enemy.acc = 0.9;
+            enemy.acc = 0.85;
             break;
     }
     enemies.push(enemy);
@@ -1150,6 +1156,11 @@ function step() {
         paused = !paused;
         menu_vertical = 0;
         menu_level_n = cur_level_n;
+    }
+
+    if (Shaku.input.pressed("m")) {
+        muted = !muted;
+        document.querySelector("audio")!.muted = muted;
     }
 
     if (paused) {

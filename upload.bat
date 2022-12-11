@@ -1,1 +1,1 @@
-butler push .\dist knexator/thinky-shmup:html 
+butler push .\dist knexator/catalyst:html 

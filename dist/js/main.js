@@ -11023,7 +11023,7 @@ var CONFIG = {
   post_merge_speed: 750,
   player_speed: 355,
   enemy_speed: 150,
-  min_enemy_dist: 200,
+  min_enemy_dist: 220,
   separation_strength: 250,
   dash_duration: 0.07,
   dash_cooldown: 0.4,
@@ -11113,6 +11113,7 @@ CONFIG.enemy_acc *= SCALING;
 CONFIG.player_acc *= SCALING;
 CONFIG.separation_strength *= SCALING;
 CONFIG.post_merge_speed *= SCALING;
+var muted = false;
 var paused = true;
 var animators = [];
 var COLOR_BACKGROUND = new import_color.default(0.2, 0.195, 0.205);
@@ -11123,6 +11124,8 @@ var SoundCollection = class {
     this.instances = sources.map((x) => import_shaku.default.sfx.createSound(x));
   }
   play() {
+    if (muted)
+      return;
     let options = this.instances.filter((x) => !x.playing);
     if (options.length === 0) {
       let cur = choice(this.instances);
@@ -11411,6 +11414,7 @@ var levels = [
   [[1 /* M */, 1 /* M */, 10 /* P2 */], [0 /* C */, 0 /* C */, 10 /* P2 */]],
   [[0 /* C */, 2 /* Y */, 10 /* P2 */, 10 /* P2 */], [1 /* M */, 1 /* M */, 0 /* C */, 2 /* Y */]],
   [[1 /* M */, 1 /* M */, 1 /* M */, 2 /* Y */], [6 /* CC */, 1 /* M */, 2 /* Y */, 9 /* P1 */]],
+  [[0 /* C */, 1 /* M */, 2 /* Y */, 10 /* P2 */], [6 /* CC */, 6 /* CC */, 9 /* P1 */, 9 /* P1 */]],
   [[8 /* YY */, 8 /* YY */, 6 /* CC */, 9 /* P1 */], [5 /* YC */, 3 /* CM */, 4 /* MY */, 9 /* P1 */]],
   [[2 /* Y */, 2 /* Y */, 2 /* Y */, 2 /* Y */], [0 /* C */, 0 /* C */, 0 /* C */, 0 /* C */]],
   [[1 /* M */, 1 /* M */, 1 /* M */, 2 /* Y */], [1 /* M */, 2 /* Y */, 2 /* Y */, 2 /* Y */]],
@@ -11447,18 +11451,21 @@ arrow_left_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.7
 arrow_left_text.position.x -= SCALING * 175;
 var arrow_left_text_x = arrow_left_text.position.x;
 var pause_menu_types_sprites = levels.map(([initial, target]) => {
+  let smaller = 0.8;
   let res = [];
   initial.forEach((x, k) => {
     let cur = new import_shaku.default.gfx.Sprite(enemy_atlas_texture);
     setSpriteToType(cur, x);
-    cur.position = board_area.getBottomLeft().addSelf((k + 0.5) * CONFIG.enemy_radius * 2.5, -CONFIG.enemy_radius * 1);
+    cur.size.mulSelf(smaller);
+    cur.position = board_area.getBottomLeft().addSelf((k + 0.5) * CONFIG.enemy_radius * 2.5 * smaller, -CONFIG.enemy_radius * smaller);
     cur.rotation = Math.PI;
     res.push(cur);
   });
   target.forEach((x, k) => {
     let cur = new import_shaku.default.gfx.Sprite(enemy_atlas_texture);
     setSpriteToType(cur, x);
-    cur.position = board_area.getBottomRight().addSelf(-(k + 0.5) * CONFIG.enemy_radius * 2.5, -CONFIG.enemy_radius * 1);
+    cur.size.mulSelf(smaller);
+    cur.position = board_area.getBottomRight().addSelf(-(k + 0.5) * CONFIG.enemy_radius * 2.5 * smaller, -CONFIG.enemy_radius * smaller);
     res.push(cur);
   });
   return res;
@@ -11503,7 +11510,7 @@ function fastSpawnEnemy(x, pos) {
       enemy.dodgeTime = 1.2;
       enemy.hoverForce = 1.2;
       enemy.friction = 0.5;
-      enemy.acc = 0.9;
+      enemy.acc = 0.85;
       break;
   }
   enemies.push(enemy);
@@ -11701,6 +11708,10 @@ function step() {
     paused = !paused;
     menu_vertical = 0;
     menu_level_n = cur_level_n;
+  }
+  if (import_shaku.default.input.pressed("m")) {
+    muted = !muted;
+    document.querySelector("audio").muted = muted;
   }
   if (paused) {
     if (cur_level_n !== -1) {
