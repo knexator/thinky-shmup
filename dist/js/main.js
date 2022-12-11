@@ -11034,7 +11034,7 @@ var CONFIG = {
   enemy_radius: 35,
   enemy_throwback_dist: 80,
   enemy_throwback_speed: 700,
-  enemy_second_hit_dist: 150,
+  enemy_second_hit_dist: 165,
   enemy_acc: 600,
   enemy_friction: 2.5,
   dodge_acc: 1500,
@@ -11115,6 +11115,7 @@ CONFIG.separation_strength *= SCALING;
 CONFIG.post_merge_speed *= SCALING;
 var muted = false;
 var paused = true;
+var in_win_screen = false;
 var animators = [];
 var COLOR_BACKGROUND = new import_color.default(0.2, 0.195, 0.205);
 var logo_font = await import_shaku.default.assets.loadMsdfFontTexture("fonts/ZenDots.ttf", { jsonUrl: "fonts/ZenDots.json", textureUrl: "fonts/ZenDots.png" });
@@ -11430,6 +11431,11 @@ var target_types_sprites = [];
 var outdated_types_sprites = [];
 var logo_text = import_shaku.default.gfx.buildText(logo_font, "Catalyst", 178 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
 logo_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.125);
+var thanks_text = import_shaku.default.gfx.buildText(logo_font, "Thanks for\nplaying!", 138 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
+thanks_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.12);
+var thanks_2_text = import_shaku.default.gfx.buildText(logo_font, "- knexator", 48 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
+thanks_2_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.5);
+thanks_2_text.position.x += SCALING * 225;
 var start_text = import_shaku.default.gfx.buildText(logo_font, "Start", 120 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
 start_text.position = import_shaku.default.gfx.getCanvasSize().mul(0.5, 0.5);
 var continue_text = import_shaku.default.gfx.buildText(logo_font, "Continue", 100 * SCALING, import_color.default.white, import_gfx.TextAlignments.Center);
@@ -11556,6 +11562,7 @@ function unloadCurrentEnemies() {
 }
 function loadLevel(n, regenerate_targets = true) {
   level_ended = false;
+  in_win_screen = false;
   let also_end_prev_level = regenerate_targets && target_types_sprites.length > 0;
   if (also_end_prev_level) {
     outdated_types_sprites = [...target_types_sprites];
@@ -11889,6 +11896,13 @@ function step() {
                 cur_level_n += 1;
                 loadLevel(cur_level_n);
               } else {
+                in_win_screen = true;
+                outdated_types_sprites = [...target_types_sprites];
+                outdated_types_sprites.forEach((x, k) => {
+                  animators.push(new import_animator.default(x).to(
+                    { "position.y": import_shaku.default.gfx.getCanvasSize().y + CONFIG.enemy_radius * 3 }
+                  ).duration(0.75 - k * 0.04).delay((outdated_types_sprites.length - k) * 0.1).smoothDamp(true));
+                });
               }
             }));
           }
@@ -12066,6 +12080,12 @@ function step() {
     } else {
       player_sprite.color = Math.floor(player_stun_time_remaining * 7) % 2 === 0 ? import_color.default.white : import_color.default.gray;
     }
+  }
+  if (in_win_screen) {
+    import_shaku.default.gfx.useEffect(font_effect);
+    import_shaku.default.gfx.drawGroup(thanks_text, false);
+    import_shaku.default.gfx.drawGroup(thanks_2_text, false);
+    import_shaku.default.gfx.useEffect(null);
   }
   drawGame();
   player_pos_history.removeBack();

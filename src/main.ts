@@ -34,7 +34,7 @@ const CONFIG = {
     enemy_radius: 35,
     enemy_throwback_dist: 80,
     enemy_throwback_speed: 700,
-    enemy_second_hit_dist: 150, // a bit more than throwback dist, to account for speed
+    enemy_second_hit_dist: 165, // a bit more than throwback dist, to account for speed
     enemy_acc: 600,
     enemy_friction: 2.5,
     dodge_acc: 1500,
@@ -131,6 +131,7 @@ CONFIG.post_merge_speed *= SCALING;
 
 let muted = false;
 let paused = true;
+let in_win_screen = false;
 let animators: Animator[] = [];
 
 enum Ship {
@@ -790,6 +791,12 @@ let outdated_types_sprites: Sprite[] = [];
 let logo_text = Shaku.gfx.buildText(logo_font, "Catalyst", 178 * SCALING, Color.white, TextAlignments.Center);
 logo_text.position = Shaku.gfx.getCanvasSize().mul(.5, .125);
 
+let thanks_text = Shaku.gfx.buildText(logo_font, "Thanks for\nplaying!", 138 * SCALING, Color.white, TextAlignments.Center);
+thanks_text.position = Shaku.gfx.getCanvasSize().mul(.5, .12);
+let thanks_2_text = Shaku.gfx.buildText(logo_font, "- knexator", 48 * SCALING, Color.white, TextAlignments.Center);
+thanks_2_text.position = Shaku.gfx.getCanvasSize().mul(.5, .5);
+thanks_2_text.position.x += SCALING * 225;
+
 let start_text = Shaku.gfx.buildText(logo_font, "Start", 120 * SCALING, Color.white, TextAlignments.Center);
 start_text.position = Shaku.gfx.getCanvasSize().mul(.5, .5);
 // start_text._sprites.forEach(x => x.position.addSelf(0, -40));
@@ -954,6 +961,7 @@ function unloadCurrentEnemies() {
 
 function loadLevel(n: number, regenerate_targets: boolean = true) {
     level_ended = false;
+    in_win_screen = false;
 
     let also_end_prev_level = regenerate_targets && target_types_sprites.length > 0;
     if (also_end_prev_level) {
@@ -1370,7 +1378,14 @@ function step() {
                                 cur_level_n += 1;
                                 loadLevel(cur_level_n);
                             } else {
-                                // todo: victory screen
+                                in_win_screen = true;
+                                // old types go out of the way
+                                outdated_types_sprites = [...target_types_sprites];
+                                outdated_types_sprites.forEach((x, k) => {
+                                    animators.push(new Animator(x).to(
+                                        { "position.y": Shaku.gfx.getCanvasSize().y + CONFIG.enemy_radius * 3 }
+                                    ).duration(.75 - k * .04).delay((outdated_types_sprites.length - k) * .1).smoothDamp(true));
+                                });
                             }
                         }));
                     }
@@ -1619,6 +1634,15 @@ function step() {
         }
     }
 
+    if (in_win_screen) {
+        Shaku.gfx.useEffect(font_effect);
+        // Shaku.gfx.drawGroup(logo_text, false);
+        Shaku.gfx.drawGroup(thanks_text, false);
+        Shaku.gfx.drawGroup(thanks_2_text, false);
+        // @ts-ignore
+        Shaku.gfx.useEffect(null);
+    }
+
     drawGame();
 
     // time_until_store_pos -= dt;
@@ -1814,6 +1838,4 @@ document.getElementById("loading")!.style.opacity = "0";
 // Shaku.gfx.canvas.style.display = "initial";
 // start main loop
 step();
-
-// todo: "click to start"
 Shaku.gfx.canvas.style.cursor = "none";
