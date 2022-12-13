@@ -103,11 +103,10 @@ var require_math_helper = __commonJS({
         return Math.round(num * 1e8) / 1e8;
       }
       static wrapDegrees(degrees) {
-        degrees = degrees % 360;
-        if (degrees < 0) {
-          degrees += 360;
-        }
-        return degrees;
+        return MathHelper.mod(degrees, 360);
+      }
+      static mod(value, m) {
+        return (value % m + m) % m;
       }
     };
     MathHelper.PI2 = Math.PI * 2;
@@ -690,15 +689,13 @@ var require_vector2 = __commonJS({
         return new Vector22(lerpScalar(p1.x, p2.x, a), lerpScalar(p1.y, p2.y, a));
       }
       static degreesBetween(P1, P2) {
-        let deltaY = P2.y - P1.y, deltaX = P2.x - P1.x;
-        return Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+        return MathHelper.toDegrees(Vector22.radiansBetween(P1, P2));
       }
       static radiansBetween(P1, P2) {
-        return MathHelper.toRadians(Vector22.degreesBetween(P1, P2));
+        return Math.atan2(Vector22.cross(P1, P2), Vector22.dot(P1, P2));
       }
       static degreesBetweenFull(P1, P2) {
-        let temp = P2.sub(P1);
-        return temp.getDegrees();
+        return MathHelper.toDegrees(Vector22.radiansBetweenFull(P1, P2));
       }
       getDegrees() {
         var angle = Math.atan2(this.y, this.x);
@@ -710,7 +707,7 @@ var require_vector2 = __commonJS({
         return angle;
       }
       static radiansBetweenFull(P1, P2) {
-        return MathHelper.toRadians(Vector22.degreesBetweenFull(P1, P2));
+        return MathHelper.mod(Vector22.radiansBetween(P1, P2), Math.PI * 2);
       }
       static distance(p1, p2) {
         let a = p1.x - p2.x;
@@ -1859,7 +1856,7 @@ var require_animator = __commonJS({
         return this;
       }
       smoothDamp(enable) {
-        this.easing(smoothDampEasing);
+        this.easing(enable ? smoothDampEasing : lerp2);
         return this;
       }
       repeats(enable, reverseAnimation) {
@@ -6564,38 +6561,38 @@ var require_input = __commonJS({
       }
       _onMouseMove(event) {
         event = this._getEvent(event);
-        if (document.pointerLockElement === null) {
-          var pageX = event.clientX;
-          if (pageX === void 0) {
-            pageX = event.x;
-          }
-          if (pageX === void 0) {
-            pageX = event.offsetX;
-          }
-          if (pageX === void 0) {
-            pageX = event.pageX;
-          }
-          var pageY = event.clientY;
-          if (pageY === void 0) {
-            pageY = event.y;
-          }
-          if (pageY === void 0) {
-            pageY = event.offsetY;
-          }
-          if (pageY === void 0) {
-            pageY = event.pageY;
-          }
-          if (pageX === void 0) {
-            pageX = event.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
-            pageY = event.clientY + document.body.scrollTop + document.documentElement.scrollTop;
-          }
-          this._mousePos.x = pageX;
-          this._mousePos.y = pageY;
-          this._normalizeMousePos();
-        } else {
+        if (document.pointerLockElement !== null) {
           this._mousePos.x += event.movementX;
           this._mousePos.y += event.movementY;
+          return;
         }
+        var pageX = event.clientX;
+        if (pageX === void 0) {
+          pageX = event.x;
+        }
+        if (pageX === void 0) {
+          pageX = event.offsetX;
+        }
+        if (pageX === void 0) {
+          pageX = event.pageX;
+        }
+        var pageY = event.clientY;
+        if (pageY === void 0) {
+          pageY = event.y;
+        }
+        if (pageY === void 0) {
+          pageY = event.offsetY;
+        }
+        if (pageY === void 0) {
+          pageY = event.pageY;
+        }
+        if (pageX === void 0) {
+          pageX = event.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+          pageY = event.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+        }
+        this._mousePos.x = pageX;
+        this._mousePos.y = pageY;
+        this._normalizeMousePos();
       }
       _normalizeMousePos() {
         if (this._targetElement && this._targetElement.getBoundingClientRect) {
@@ -11023,18 +11020,18 @@ var CONFIG = {
   post_merge_speed: 750,
   player_speed: 355,
   enemy_speed: 150,
-  min_enemy_dist: 220,
-  separation_strength: 250,
+  min_enemy_dist: 170,
+  separation_strength: 350,
   dash_duration: 0.07,
-  dash_cooldown: 0.4,
+  dash_cooldown: 0.3,
   dash_speed: 2600,
   tail_frames: 20,
-  dash_dist: 200,
+  dash_dist: 250,
   player_turn_speed_radians: 3,
   enemy_radius: 35,
-  enemy_throwback_dist: 80,
+  enemy_throwback_dist: 100,
   enemy_throwback_speed: 700,
-  enemy_second_hit_dist: 165,
+  enemy_second_hit_dist: 185,
   enemy_acc: 600,
   enemy_friction: 2.5,
   dodge_acc: 1500,
@@ -11046,7 +11043,8 @@ var CONFIG = {
   grab_dist: 20,
   ray_radius: 10,
   dash_hit_duration: 0.25,
-  player_radius: 30,
+  player_radius: 25,
+  stun_generosity: 0.75,
   dash_dir_override: 5,
   screen_shake_size: 33,
   screen_shake_speed: 21,
@@ -11058,7 +11056,8 @@ var CONFIG = {
   turret_delay: 3,
   delayed_rot_speed: 1,
   spawn_time: 0.2,
-  stun_time: 0.8
+  stun_time: 0.5,
+  enemy_stun_time: 0.8
 };
 var gui = new GUI$1({});
 gui.remember(CONFIG);
@@ -11118,7 +11117,7 @@ var paused = true;
 var in_win_screen = false;
 var animators = [];
 var COLOR_BACKGROUND = new import_color.default(0.2, 0.195, 0.205);
-var logo_font = await import_shaku.default.assets.loadMsdfFontTexture("fonts/ZenDots.ttf", { jsonUrl: "fonts/ZenDots.json", textureUrl: "fonts/ZenDots.png" });
+var logo_font = import_shaku.default.assets.loadMsdfFontTexture("fonts/ZenDots.ttf", { jsonUrl: "fonts/ZenDots.json", textureUrl: "fonts/ZenDots.png" }).asset;
 var SoundCollection = class {
   instances;
   constructor(sources) {
@@ -11138,52 +11137,29 @@ var SoundCollection = class {
     }
   }
 };
-var wood_merge_sound = new SoundCollection([
-  await import_shaku.default.assets.loadSound("sounds/wood_merge_1.mp3"),
-  await import_shaku.default.assets.loadSound("sounds/wood_merge_2.mp3"),
-  await import_shaku.default.assets.loadSound("sounds/wood_merge_3.mp3")
-]);
-var wood_touch_sound = new SoundCollection([
-  await import_shaku.default.assets.loadSound("sounds/wood_touch_1.mp3"),
-  await import_shaku.default.assets.loadSound("sounds/wood_touch_2.mp3"),
-  await import_shaku.default.assets.loadSound("sounds/wood_touch_3.mp3")
-]);
-var wood_crash_sound = new SoundCollection([
-  await import_shaku.default.assets.loadSound("sounds/wood_crash_1.mp3"),
-  await import_shaku.default.assets.loadSound("sounds/wood_crash_2.mp3"),
-  await import_shaku.default.assets.loadSound("sounds/wood_crash_3.mp3")
-]);
-var metal_merge_sound = new SoundCollection([
-  await import_shaku.default.assets.loadSound("sounds/metal_merge_1.mp3"),
-  await import_shaku.default.assets.loadSound("sounds/metal_merge_2.mp3"),
-  await import_shaku.default.assets.loadSound("sounds/metal_merge_3.mp3")
-]);
-var metal_touch_sound = new SoundCollection([
-  await import_shaku.default.assets.loadSound("sounds/metal_touch_1.mp3"),
-  await import_shaku.default.assets.loadSound("sounds/metal_touch_2.mp3"),
-  await import_shaku.default.assets.loadSound("sounds/metal_touch_3.mp3")
-]);
-var metal_crash_sound = new SoundCollection([
-  await import_shaku.default.assets.loadSound("sounds/metal_crash_1.mp3"),
-  await import_shaku.default.assets.loadSound("sounds/metal_crash_2.mp3"),
-  await import_shaku.default.assets.loadSound("sounds/metal_crash_3.mp3")
-]);
-var cursor_texture = await import_shaku.default.assets.loadTexture("imgs/cursor.png", { generateMipMaps: true });
+var wood_merge_srcs = ["sounds/wood_merge_1.mp3", "sounds/wood_merge_2.mp3", "sounds/wood_merge_3.mp3"].map((x) => import_shaku.default.assets.loadSound(x).asset);
+var wood_touch_srcs = ["sounds/wood_touch_1.mp3", "sounds/wood_touch_2.mp3", "sounds/wood_touch_3.mp3"].map((x) => import_shaku.default.assets.loadSound(x).asset);
+var wood_crash_srcs = ["sounds/wood_crash_1.mp3", "sounds/wood_crash_2.mp3", "sounds/wood_crash_3.mp3"].map((x) => import_shaku.default.assets.loadSound(x).asset);
+var metal_merge_srcs = ["sounds/metal_merge_1.mp3", "sounds/metal_merge_2.mp3", "sounds/metal_merge_3.mp3"].map((x) => import_shaku.default.assets.loadSound(x).asset);
+var metal_touch_srcs = ["sounds/metal_touch_1.mp3", "sounds/metal_touch_2.mp3", "sounds/metal_touch_3.mp3"].map((x) => import_shaku.default.assets.loadSound(x).asset);
+var metal_crash_srcs = ["sounds/metal_crash_1.mp3", "sounds/metal_crash_2.mp3", "sounds/metal_crash_3.mp3"].map((x) => import_shaku.default.assets.loadSound(x).asset);
+var cursor_texture = import_shaku.default.assets.loadTexture("imgs/cursor.png", { generateMipMaps: true }).asset;
+var enemy_atlas_texture = import_shaku.default.assets.loadTexture("imgs/enemies.png", { generateMipMaps: true }).asset;
+var player_tail_texture = import_shaku.default.assets.loadTexture("imgs/trail_particle.png", { generateMipMaps: true }).asset;
+var merge_particle_texture = import_shaku.default.assets.loadTexture("imgs/merge_particle.png", { generateMipMaps: true }).asset;
+var background_texture = import_shaku.default.assets.loadTexture("imgs/background.png", { generateMipMaps: true }).asset;
+await import_shaku.default.assets.waitForAll();
 cursor_texture.filter = import_gfx.TextureFilterModes.Linear;
 var cursor_sprite = new import_sprite.default(cursor_texture);
 cursor_sprite.size.mulSelf(SCALING);
-var enemy_atlas_texture = await import_shaku.default.assets.loadTexture("imgs/enemies.png", { generateMipMaps: true });
 enemy_atlas_texture.filter = import_gfx.TextureFilterModes.Linear;
 var player_sprite = new import_shaku.default.gfx.Sprite(enemy_atlas_texture);
 player_sprite.setSourceFromSpritesheet(new import_vector2.default(2, 3), new import_vector2.default(3, 4), 0, true);
 player_sprite.size.mulSelf(CONFIG.player_radius / 50);
-var player_tail_texture = await import_shaku.default.assets.loadTexture("imgs/trail_particle.png", { generateMipMaps: true });
 player_tail_texture.filter = import_gfx.TextureFilterModes.Linear;
 var player_tail_sprite = new import_shaku.default.gfx.Sprite(player_tail_texture);
 player_tail_sprite.color = new import_color.default(1, 1, 1, 0.5);
-var merge_particle_texture = await import_shaku.default.assets.loadTexture("imgs/merge_particle.png", { generateMipMaps: true });
 merge_particle_texture.filter = import_gfx.TextureFilterModes.Linear;
-var background_texture = await import_shaku.default.assets.loadTexture("imgs/background.png", { generateMipMaps: true });
 background_texture.filter = import_gfx.TextureFilterModes.Linear;
 background_texture.wrapMode = import_gfx.TextureWrapModes.Repeat;
 var FULL_SCREEN_SPRITE = new import_sprite.default(import_shaku.default.gfx.whiteTexture);
@@ -11192,6 +11168,12 @@ FULL_SCREEN_SPRITE.size = import_shaku.default.gfx.getCanvasSize();
 var board_h = FULL_SCREEN_SPRITE.size.y * 0.8 - 10;
 var board_w = FULL_SCREEN_SPRITE.size.y * (4 / 3 - 0.2) - 10;
 var board_area = new import_rectangle.default(FULL_SCREEN_SPRITE.size.x / 2 - board_w / 2, FULL_SCREEN_SPRITE.size.y / 2 - board_h / 2, board_w, board_h);
+var wood_merge_sound = new SoundCollection(wood_merge_srcs);
+var wood_touch_sound = new SoundCollection(wood_touch_srcs);
+var wood_crash_sound = new SoundCollection(wood_crash_srcs);
+var metal_merge_sound = new SoundCollection(metal_merge_srcs);
+var metal_touch_sound = new SoundCollection(metal_touch_srcs);
+var metal_crash_sound = new SoundCollection(metal_crash_srcs);
 var background_effect = import_shaku.default.gfx.createEffect(BackgroundEffect);
 import_shaku.default.gfx.useEffect(background_effect);
 background_effect.uniforms["u_texture"](background_texture, 4);
@@ -11307,7 +11289,7 @@ var Enemy = class {
   }
   steer_chasePlayer(acc) {
     let player_dir2 = player_pos.sub(this.pos).normalizeSelf();
-    if (player_stun_time_remaining > 0) {
+    if (enemy_stun_time_remaining > 0) {
       player_dir2.mulSelf(-0.25);
     }
     this.steer_chaseDir(player_dir2, acc);
@@ -11396,6 +11378,7 @@ var player_pos = import_shaku.default.gfx.getCanvasSize().mulSelf(0.5);
 var player_dir = import_vector2.default.right;
 var player_vel = import_vector2.default.right.mulSelf(CONFIG.player_speed);
 var player_stun_time_remaining = 0;
+var enemy_stun_time_remaining = 0;
 var player_pos_history = new import_double_ended_queue.default(60);
 while (player_pos_history.length < CONFIG.tail_frames) {
   player_pos_history.insertFront([0, import_vector2.default.zero]);
@@ -11515,7 +11498,7 @@ function fastSpawnEnemy(x, pos) {
       enemy.dodgeForce = 1.2;
       enemy.dodgeTime = 1.2;
       enemy.hoverForce = 1.2;
-      enemy.friction = 0.5;
+      enemy.friction = 0.7;
       enemy.acc = 0.85;
       break;
   }
@@ -12067,11 +12050,13 @@ function step() {
   }
   bullets.forEach((x) => x.update(dt));
   if (cur_hit === null && player_stun_time_remaining === 0) {
-    let colliding_index = enemies.findIndex((x) => !x.flying && import_vector2.default.distance(player_pos, x.pos) < CONFIG.enemy_radius + CONFIG.player_radius);
+    let colliding_index = enemies.findIndex((x) => !x.flying && import_vector2.default.distance(player_pos, x.pos) < CONFIG.stun_generosity * (CONFIG.enemy_radius + CONFIG.player_radius));
     if (colliding_index !== -1) {
       player_stun_time_remaining = CONFIG.stun_time;
+      enemy_stun_time_remaining = CONFIG.enemy_stun_time;
     }
   }
+  enemy_stun_time_remaining = Math.max(0, enemy_stun_time_remaining - dt);
   if (player_stun_time_remaining > 0) {
     player_stun_time_remaining -= dt;
     if (player_stun_time_remaining <= 0) {

@@ -23,18 +23,18 @@ const CONFIG = {
     post_merge_speed: 750,
     player_speed: 355, // 2.25s to cross the 800px screen
     enemy_speed: 150, // about half?
-    min_enemy_dist: 220,
-    separation_strength: 250,
+    min_enemy_dist: 170,
+    separation_strength: 350,
     dash_duration: 0.07,
-    dash_cooldown: .4,
+    dash_cooldown: .3,
     dash_speed: 2600, // double speed idk
     tail_frames: 20,
-    dash_dist: 200,
+    dash_dist: 250,
     player_turn_speed_radians: 3,
     enemy_radius: 35,
-    enemy_throwback_dist: 80,
+    enemy_throwback_dist: 100,
     enemy_throwback_speed: 700,
-    enemy_second_hit_dist: 165, // a bit more than throwback dist, to account for speed
+    enemy_second_hit_dist: 185, // a bit more than throwback dist, to account for speed
     enemy_acc: 600,
     enemy_friction: 2.5,
     dodge_acc: 1500,
@@ -46,7 +46,8 @@ const CONFIG = {
     grab_dist: 20,
     ray_radius: 10,
     dash_hit_duration: 0.25, // freeze screen for extra effect
-    player_radius: 30,
+    player_radius: 25,
+    stun_generosity: .75,
     dash_dir_override: 5,
     screen_shake_size: 33,
     screen_shake_speed: 21,
@@ -58,7 +59,8 @@ const CONFIG = {
     turret_delay: 3,
     delayed_rot_speed: 1,
     spawn_time: .2,
-    stun_time: .8,
+    stun_time: .5,
+    enemy_stun_time: .8,
 };
 let gui = new dat.GUI({});
 gui.remember(CONFIG);
@@ -144,7 +146,7 @@ enum Ship {
 const COLOR_BACKGROUND = new Color(.2, .195, .205);
 
 // @ts-ignore
-const logo_font = await Shaku.assets.loadMsdfFontTexture('fonts/ZenDots.ttf', { jsonUrl: 'fonts/ZenDots.json', textureUrl: 'fonts/ZenDots.png' });
+const logo_font = Shaku.assets.loadMsdfFontTexture('fonts/ZenDots.ttf', { jsonUrl: 'fonts/ZenDots.json', textureUrl: 'fonts/ZenDots.png' }).asset;
 
 class SoundCollection {
     public instances: SoundInstance[]
@@ -168,75 +170,48 @@ class SoundCollection {
     }
 }
 
-let wood_merge_sound = new SoundCollection([
-    await Shaku.assets.loadSound("sounds/wood_merge_1.mp3"),
-    await Shaku.assets.loadSound("sounds/wood_merge_2.mp3"),
-    await Shaku.assets.loadSound("sounds/wood_merge_3.mp3"),
-]);
-let wood_touch_sound = new SoundCollection([
-    await Shaku.assets.loadSound("sounds/wood_touch_1.mp3"),
-    await Shaku.assets.loadSound("sounds/wood_touch_2.mp3"),
-    await Shaku.assets.loadSound("sounds/wood_touch_3.mp3"),
-]);
-let wood_crash_sound = new SoundCollection([
-    await Shaku.assets.loadSound("sounds/wood_crash_1.mp3"),
-    await Shaku.assets.loadSound("sounds/wood_crash_2.mp3"),
-    await Shaku.assets.loadSound("sounds/wood_crash_3.mp3"),
-]);
+// @ts-ignore
+let wood_merge_srcs = ["sounds/wood_merge_1.mp3", "sounds/wood_merge_2.mp3", "sounds/wood_merge_3.mp3"].map(x => Shaku.assets.loadSound(x).asset);
+// @ts-ignore
+let wood_touch_srcs = ["sounds/wood_touch_1.mp3", "sounds/wood_touch_2.mp3", "sounds/wood_touch_3.mp3"].map(x => Shaku.assets.loadSound(x).asset);
+// @ts-ignore
+let wood_crash_srcs = ["sounds/wood_crash_1.mp3", "sounds/wood_crash_2.mp3", "sounds/wood_crash_3.mp3"].map(x => Shaku.assets.loadSound(x).asset);
+// @ts-ignore
+let metal_merge_srcs = ["sounds/metal_merge_1.mp3", "sounds/metal_merge_2.mp3", "sounds/metal_merge_3.mp3"].map(x => Shaku.assets.loadSound(x).asset);
+// @ts-ignore
+let metal_touch_srcs = ["sounds/metal_touch_1.mp3", "sounds/metal_touch_2.mp3", "sounds/metal_touch_3.mp3"].map(x => Shaku.assets.loadSound(x).asset);
+// @ts-ignore
+let metal_crash_srcs = ["sounds/metal_crash_1.mp3", "sounds/metal_crash_2.mp3", "sounds/metal_crash_3.mp3"].map(x => Shaku.assets.loadSound(x).asset);
 
-let metal_merge_sound = new SoundCollection([
-    await Shaku.assets.loadSound("sounds/metal_merge_1.mp3"),
-    await Shaku.assets.loadSound("sounds/metal_merge_2.mp3"),
-    await Shaku.assets.loadSound("sounds/metal_merge_3.mp3"),
-]);
-let metal_touch_sound = new SoundCollection([
-    await Shaku.assets.loadSound("sounds/metal_touch_1.mp3"),
-    await Shaku.assets.loadSound("sounds/metal_touch_2.mp3"),
-    await Shaku.assets.loadSound("sounds/metal_touch_3.mp3"),
-]);
-let metal_crash_sound = new SoundCollection([
-    await Shaku.assets.loadSound("sounds/metal_crash_1.mp3"),
-    await Shaku.assets.loadSound("sounds/metal_crash_2.mp3"),
-    await Shaku.assets.loadSound("sounds/metal_crash_3.mp3"),
-]);
-let cursor_texture = await Shaku.assets.loadTexture("imgs/cursor.png", { generateMipMaps: true });
+// @ts-ignore
+let cursor_texture = Shaku.assets.loadTexture("imgs/cursor.png", { generateMipMaps: true }).asset;
+// @ts-ignore
+let enemy_atlas_texture = Shaku.assets.loadTexture("imgs/enemies.png", { generateMipMaps: true }).asset;
+// @ts-ignore
+let player_tail_texture = Shaku.assets.loadTexture("imgs/trail_particle.png", { generateMipMaps: true }).asset;
+// @ts-ignore
+let merge_particle_texture = Shaku.assets.loadTexture("imgs/merge_particle.png", { generateMipMaps: true }).asset;
+// @ts-ignore
+let background_texture = Shaku.assets.loadTexture("imgs/background.png", { generateMipMaps: true }).asset;
+
+await Shaku.assets.waitForAll();
+
 cursor_texture.filter = TextureFilterModes.Linear;
 let cursor_sprite = new Sprite(cursor_texture);
 cursor_sprite.size.mulSelf(SCALING);
-// cursor_sprite.color = new Color(1, 1, 1, .75);
 
-let enemy_atlas_texture = await Shaku.assets.loadTexture("imgs/enemies.png", { generateMipMaps: true });
 enemy_atlas_texture.filter = TextureFilterModes.Linear;
 
-// let player_texture = await Shaku.assets.loadTexture("imgs/player.png", { generateMipMaps: true });
-// player_texture.filter = TextureFilterModes.Linear;
 let player_sprite = new Shaku.gfx!.Sprite(enemy_atlas_texture);
 player_sprite.setSourceFromSpritesheet(new Vector2(2, 3), new Vector2(3, 4), 0, true);
 player_sprite.size.mulSelf(CONFIG.player_radius / 50);
-// player_sprite.color = Color.black;
-let player_tail_texture = await Shaku.assets.loadTexture("imgs/trail_particle.png", { generateMipMaps: true });
+
 player_tail_texture.filter = TextureFilterModes.Linear;
 let player_tail_sprite = new Shaku.gfx!.Sprite(player_tail_texture);
 player_tail_sprite.color = new Color(1, 1, 1, .5);
 
-// let enemy_texture = await Shaku.assets.loadTexture("imgs/enemy.png", { generateMipMaps: true });
-// enemy_texture.filter = TextureFilterModes.Linear;
-
-// let enemy_hit_trail_sprite = new Shaku.gfx!.Sprite(enemy_texture);
-// enemy_hit_trail_sprite.size.mulSelf(CONFIG.enemy_radius / 50);
-// enemy_hit_trail_sprite.color = new Color(1, 1, 1, .125);
-
-// let bullet_texture = await Shaku.assets.loadTexture("imgs/bullet.png", { generateMipMaps: true });
-// bullet_texture.filter = TextureFilterModes.Linear;
-
-// let crash_particle_texture = await Shaku.assets.loadTexture("imgs/crash_particle.png", { generateMipMaps: true });
-// crash_particle_texture.filter = TextureFilterModes.Linear;
-
-let merge_particle_texture = await Shaku.assets.loadTexture("imgs/merge_particle.png", { generateMipMaps: true });
 merge_particle_texture.filter = TextureFilterModes.Linear;
 
-
-let background_texture = await Shaku.assets.loadTexture("imgs/background.png", { generateMipMaps: true });
 background_texture.filter = TextureFilterModes.Linear;
 background_texture.wrapMode = TextureWrapModes.Repeat;
 
@@ -248,26 +223,13 @@ let board_h = FULL_SCREEN_SPRITE.size.y * .8 - 10; // enemy radius hack thing
 let board_w = FULL_SCREEN_SPRITE.size.y * (4 / 3 - .2) - 10;
 let board_area = new Rectangle(FULL_SCREEN_SPRITE.size.x / 2 - board_w / 2, FULL_SCREEN_SPRITE.size.y / 2 - board_h / 2, board_w, board_h);
 
-// let grunge_r_texture = await Shaku.assets.loadTexture("imgs/grunge_r.png", { generateMipMaps: true });
-// grunge_r_texture.filter = TextureFilterModes.Linear;
-// grunge_r_texture.wrapMode = TextureWrapModes.Repeat;
-// let grunge_g_texture = await Shaku.assets.loadTexture("imgs/grunge_g.png", { generateMipMaps: true });
-// grunge_g_texture.filter = TextureFilterModes.Linear;
-// grunge_g_texture.wrapMode = TextureWrapModes.Repeat;
-// let grunge_b_texture = await Shaku.assets.loadTexture("imgs/grunge_b.png", { generateMipMaps: true });
-// grunge_b_texture.filter = TextureFilterModes.Linear;
-// grunge_b_texture.wrapMode = TextureWrapModes.Repeat;
+let wood_merge_sound = new SoundCollection(wood_merge_srcs);
+let wood_touch_sound = new SoundCollection(wood_touch_srcs);
+let wood_crash_sound = new SoundCollection(wood_crash_srcs);
 
-// let screen_texture_effect = Shaku.gfx.createEffect(ScreenTextureEffect);
-// Shaku.gfx.useEffect(screen_texture_effect);
-// // @ts-ignore
-// screen_texture_effect.uniforms.textureR(grunge_r_texture, 1);
-// // @ts-ignore
-// screen_texture_effect.uniforms.textureG(grunge_g_texture, 2);
-// // @ts-ignore
-// screen_texture_effect.uniforms.textureB(grunge_b_texture, 3);
-// // @ts-ignore
-// Shaku.gfx.useEffect(null);
+let metal_merge_sound = new SoundCollection(metal_merge_srcs);
+let metal_touch_sound = new SoundCollection(metal_touch_srcs);
+let metal_crash_sound = new SoundCollection(metal_crash_srcs);
 
 const background_effect = Shaku.gfx.createEffect(BackgroundEffect);
 Shaku.gfx.useEffect(background_effect);
@@ -448,7 +410,7 @@ class Enemy {
 
     steer_chasePlayer(acc: number) {
         let player_dir = player_pos.sub(this.pos).normalizeSelf()
-        if (player_stun_time_remaining > 0) {
+        if (enemy_stun_time_remaining > 0) {
             player_dir.mulSelf(-.25);
         }
         this.steer_chaseDir(player_dir, acc);
@@ -740,6 +702,7 @@ let player_pos = Shaku.gfx.getCanvasSize().mulSelf(.5);
 let player_dir = Vector2.right;
 let player_vel = Vector2.right.mulSelf(CONFIG.player_speed);
 let player_stun_time_remaining = 0;
+let enemy_stun_time_remaining = 0;
 
 let time_until_store_pos = 0;
 let player_pos_history = new Deque<[number, Vector2]>(60);
@@ -915,7 +878,7 @@ function fastSpawnEnemy(x: Ship, pos: Vector2) {
             enemy.dodgeForce = 1.2;
             enemy.dodgeTime = 1.2;
             enemy.hoverForce = 1.2;
-            enemy.friction = .5;
+            enemy.friction = .7;
             enemy.acc = 0.85;
             break;
     }
@@ -1617,13 +1580,14 @@ function step() {
     bullets.forEach(x => x.update(dt));
     if (cur_hit === null && player_stun_time_remaining === 0) {
         // maybe stun player
-        let colliding_index = enemies.findIndex(x => !x.flying && Vector2.distance(player_pos, x.pos) < (CONFIG.enemy_radius + CONFIG.player_radius));
+        let colliding_index = enemies.findIndex(x => !x.flying && Vector2.distance(player_pos, x.pos) < CONFIG.stun_generosity * (CONFIG.enemy_radius + CONFIG.player_radius));
         if (colliding_index !== -1) {
             player_stun_time_remaining = CONFIG.stun_time;
+            enemy_stun_time_remaining = CONFIG.enemy_stun_time;
         }
     }
 
-
+    enemy_stun_time_remaining = Math.max(0, enemy_stun_time_remaining - dt);
     if (player_stun_time_remaining > 0) {
         player_stun_time_remaining -= dt;
         if (player_stun_time_remaining <= 0) {
@@ -1663,45 +1627,6 @@ function step() {
     // end frame and request next step
     Shaku.endFrame();
     Shaku.requestAnimationFrame(step);
-}
-
-async function loadAsciiTexture(ascii: string, colors: (string | Color)[]): Promise<TextureAsset> {
-
-    let rows = ascii.trim().split("\n").map(x => x.trim())
-    console.log(rows)
-    let height = rows.length
-    let width = rows[0].length
-
-    // create render target
-    // @ts-ignore
-    let renderTarget = await Shaku.assets.createRenderTarget(null, width, height, 4);
-
-    // use render target
-    Shaku.gfx!.setRenderTarget(renderTarget, false);
-
-    for (let j = 0; j < height; j++) {
-        for (let i = 0; i < width; i++) {
-            let val = rows[j][i];
-            if (val === '.' || val === ' ') continue;
-            let n = parseInt(val);
-
-            let col = colors[n];
-            if (typeof col === 'string') {
-                col = Shaku.utils.Color.fromHex(col);
-            }
-            Shaku.gfx!.fillRect(
-                new Shaku.utils.Rectangle(i, height - j - 1, 1, 1),
-                col,
-                BlendModes.Opaque, 0
-            );
-        }
-    }
-
-    // reset render target
-    // @ts-ignore
-    Shaku.gfx!.setRenderTarget(null, false);
-
-    return renderTarget;
 }
 
 function choice<T>(arr: T[]) {
