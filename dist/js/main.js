@@ -11803,7 +11803,7 @@ function step() {
       } else if (menu_vertical === 1) {
         if (import_shaku.default.input.pressed("space") || import_shaku.default.input.mousePressed()) {
           unloadCurrentEnemies();
-          loadLevel(cur_level_n, false);
+          loadLevel(cur_level_n, in_win_screen);
           paused = false;
         }
       } else if (menu_vertical === 2) {

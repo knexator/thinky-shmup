@@ -1244,7 +1244,7 @@ function step() {
             } else if (menu_vertical === 1) {
                 if (Shaku.input.pressed("space") || Shaku.input.mousePressed()) {
                     unloadCurrentEnemies();
-                    loadLevel(cur_level_n, false);
+                    loadLevel(cur_level_n, in_win_screen); // almost always false
                     paused = false;
                 }
             } else if (menu_vertical === 2) {
